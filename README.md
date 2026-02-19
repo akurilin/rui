@@ -22,13 +22,29 @@ Captured on February 18, 2026 from the corners page as a showcase of anchoring b
 SDL and SDL_image are brought in as Git submodules at `vendored/SDL` and
 `vendored/SDL_image`.
 
+## Rust Prototype Status
+
+A Rust bootstrap app now exists under `rust/` while the C implementation remains the current primary/reference implementation.
+
+- Rust workspace root: `rust/Cargo.toml`
+- Rust app crate: `rust/cui_app`
+- Rust migration/architecture notes: `docs/rust-port-plan.md`
+
+Current Rust scope:
+
+- SDL3 app loop and window lifecycle
+- startup page selection (`--page`)
+- runtime page switching (`1`, `2`, `3`, `Tab`)
+- placeholder page rendering for `todo`, `corners`, and `showcase`
+
 ## Architecture Overview
 
 The codebase is split into:
 
 - a reusable UI kit (`include/ui`, `src/ui`) for concrete widgets and shared element primitives,
 - a UI system/runtime layer (`include/system`, `src/system`) for orchestration and dispatch,
-- an example app layer (`include/pages`, `src/pages`) hosted by a small application shell (`main.c`).
+- an example app layer (`include/pages`, `src/pages`) hosted by a small application shell (`main.c`),
+- a Rust prototype app (`rust/cui_app`) that is incrementally replacing the C implementation.
 
 - `main.c` is composition/root wiring only: parse startup flags, select a page by id, create window/renderer, initialize `ui_runtime`, create the active page, and run the main loop.
 - `todo_page` is the sample TODO app and owns todo-specific model state plus screen-level UI composition.
@@ -205,6 +221,30 @@ Potential future enhancements (still under consideration):
 ```
 cmake -S . -B build
 cmake --build build
+```
+
+## Rust Prototype Build and Run
+
+From repository root:
+
+```bash
+cd rust
+cargo run -p cui_app -- --page todo
+```
+
+Optional startup size/page examples:
+
+```bash
+cd rust
+cargo run -p cui_app -- --page corners --width 1000 --height 700
+cargo run -p cui_app -- --page showcase --width 1100 --height 760
+```
+
+Show Rust app help:
+
+```bash
+cd rust
+cargo run -p cui_app -- --help
 ```
 
 ## Makefile shortcuts:
