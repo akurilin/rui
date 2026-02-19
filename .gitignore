@@ -57,6 +57,12 @@ dkms.conf
 # CMake build output
 build/
 
+# Rust build output
+rust/target/
+
+# Nested crate lockfile (workspace lockfile is tracked at rust/Cargo.lock)
+rust/cui_app/Cargo.lock
+
 # App window capture helper logs
 *.capture.log
 
