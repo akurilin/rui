@@ -47,9 +47,21 @@ impl AppPage for TestPage {
             .with_height(SizeMode::Grow(1.0))
             .with_padding(8.0)
             .with_spacing(8.0)
-            .push(ColorBlock::new(Color::RGB(120, 172, 240)).with_width(SizeMode::Grow(1.0)).with_height(SizeMode::FillParent))
-            .push(ColorBlock::new(Color::RGB(96, 152, 227)).with_width(SizeMode::Grow(2.0)).with_height(SizeMode::FillParent))
-            .push(ColorBlock::new(Color::RGB(74, 132, 212)).with_width(SizeMode::Grow(1.0)).with_height(SizeMode::FillParent));
+            .push(
+                ColorBlock::new(Color::RGB(120, 172, 240))
+                    .with_width(SizeMode::Grow(1.0))
+                    .with_height(SizeMode::FillParent),
+            )
+            .push(
+                ColorBlock::new(Color::RGB(96, 152, 227))
+                    .with_width(SizeMode::Grow(2.0))
+                    .with_height(SizeMode::FillParent),
+            )
+            .push(
+                ColorBlock::new(Color::RGB(74, 132, 212))
+                    .with_width(SizeMode::Grow(1.0))
+                    .with_height(SizeMode::FillParent),
+            );
 
         VStack::new(Color::RGB(52, 116, 214))
             .with_spacing(4.0)

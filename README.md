@@ -9,7 +9,7 @@ This project is focused on building a reusable UI kit in C using SDL3, currently
 - `corners` (`corners_page`): a resize/anchor validation page with eight edge/corner anchored buttons.
 - `showcase` (`showcase_page`): a full widget showcase page that demonstrates every built-in UI element on one screen.
 
-This repository is currently in the middle of a migration from the original C application and UI library to Rust versions of the app and library. The C implementation is staying fixed for now as the migration proceeds in `Rust/`.
+This repository is currently in the middle of a migration from the original C application and UI library to Rust versions of the app and library. The C implementation is staying fixed for now as the migration proceeds in `rust/`.
 
 ## Current UI
 
@@ -26,10 +26,10 @@ SDL and SDL_image are brought in as Git submodules at `vendored/SDL` and
 
 ## Rust Prototype Status
 
-A Rust bootstrap app now exists under `Rust/` while the C implementation remains the current primary/reference implementation and is intentionally fixed during the migration.
+A Rust bootstrap app now exists under `rust/` while the C implementation remains the current primary/reference implementation and is intentionally fixed during the migration.
 
-- Rust workspace root: `Rust/Cargo.toml`
-- Rust app crate: `Rust/cui_app`
+- Rust workspace root: `rust/Cargo.toml`
+- Rust app crate: `rust/cui_app`
 - Rust migration/architecture notes: `docs/rust-port-plan.md`
 
 Current Rust scope:
@@ -49,7 +49,7 @@ The codebase is split into:
 - a reusable UI kit (`include/ui`, `src/ui`) for concrete widgets and shared element primitives,
 - a UI system/runtime layer (`include/system`, `src/system`) for orchestration and dispatch,
 - an example app layer (`include/pages`, `src/pages`) hosted by a small application shell (`main.c`),
-- a Rust prototype app (`Rust/cui_app`) that is incrementally replacing the C implementation.
+- a Rust prototype app (`rust/cui_app`) that is incrementally replacing the C implementation.
 
 - `main.c` is composition/root wiring only: parse startup flags, select a page by id, create window/renderer, initialize `ui_runtime`, create the active page, and run the main loop.
 - `todo_page` is the sample TODO app and owns todo-specific model state plus screen-level UI composition.
@@ -233,14 +233,14 @@ cmake --build build
 From repository root:
 
 ```bash
-cd Rust
+cd rust
 cargo run -p cui_app -- --page todo
 ```
 
 Optional startup size/page examples:
 
 ```bash
-cd Rust
+cd rust
 cargo run -p cui_app -- --page corners --width 1000 --height 700
 cargo run -p cui_app -- --page showcase --width 1100 --height 760
 ```
@@ -248,13 +248,13 @@ cargo run -p cui_app -- --page showcase --width 1100 --height 760
 Show Rust app help:
 
 ```bash
-cd Rust
+cd rust
 cargo run -p cui_app -- --help
 ```
 
 ## Makefile shortcuts:
 ```
-make build    # build Rust app (Rust/cui_app)
+make build    # build Rust app (rust/cui_app)
 make test     # run Rust tests for cui_app
 make run      # run Rust app via cargo (use RUN_ARGS/ARGS for app flags)
 make clean    # remove Rust target dir and legacy C build dir
@@ -265,7 +265,8 @@ make c-run     # run frozen C app binary (use RUN_ARGS/ARGS for app flags)
 make format   # apply clang-format to non-vendored .c/.h files
 make lint     # run clang-tidy checks
 make analyze  # run Clang Static Analyzer for the cui target via scan-build
-make precommit # run all commit-gating checks
+make precommit # run Rust commit-gating checks (fmt/check/test)
+make c-precommit # run legacy C commit-gating checks (format-check/lint/analyze)
 make install-hooks # enable repo-managed Git hooks
 make submodules-init   # initialize and fetch vendored submodules
 make submodules-update # update submodules to latest remote commits
@@ -286,7 +287,13 @@ To enforce checks before every commit:
 make install-hooks
 ```
 
-After that, Git will run `.githooks/pre-commit`, which executes `make precommit`.
+After that, Git will run `.githooks/pre-commit`, which executes Rust-first commit checks via `make precommit` (`cargo fmt --check`, `cargo check`, `cargo test` for the Rust app).
+
+Run the frozen C implementation checks explicitly with:
+
+```bash
+make c-precommit
+```
 
 On macOS, install required tools with Homebrew if needed:
 
@@ -301,12 +308,12 @@ export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 ```
 
 ## Run (Rust Default):
-The default app run path is now the Rust port (`Rust/cui_app`).
+The default app run path is now the Rust port (`rust/cui_app`).
 
 Run via Cargo from the repository root:
 
 ```bash
-cd Rust
+cd rust
 cargo run -p cui_app -- --page todo
 ```
 

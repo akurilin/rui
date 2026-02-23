@@ -34,7 +34,12 @@ pub enum PageId {
 
 impl PageId {
     pub fn all() -> &'static [PageId] {
-        &[PageId::Todo, PageId::Corners, PageId::Showcase, PageId::Test]
+        &[
+            PageId::Todo,
+            PageId::Corners,
+            PageId::Showcase,
+            PageId::Test,
+        ]
     }
 
     pub fn as_str(&self) -> &'static str {

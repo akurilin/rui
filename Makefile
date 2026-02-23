@@ -1,7 +1,7 @@
-.PHONY: configure build test run clean c-configure c-build c-test c-run c-clean check-tools format format-check lint analyze precommit install-hooks submodules-init submodules-update
+.PHONY: configure build test run clean c-configure c-build c-test c-run c-clean check-tools format format-check lint analyze rust-format-check rust-lint rust-precommit c-precommit precommit install-hooks submodules-init submodules-update
 
-C_SOURCES := $(shell find . -type f -name '*.c' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*' -not -path './Rust/target/*')
-C_HEADERS := $(shell find . -type f -name '*.h' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*' -not -path './Rust/target/*')
+C_SOURCES := $(shell find . -type f -name '*.c' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*')
+C_HEADERS := $(shell find . -type f -name '*.h' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*')
 C_FILES := $(C_SOURCES) $(C_HEADERS)
 
 UNAME := $(shell uname)
@@ -19,7 +19,7 @@ CLANG_TIDY := $(LLVM_BIN)/clang-tidy
 SCAN_BUILD := $(LLVM_BIN)/scan-build
 RUN_ARGS ?=
 ARGS ?=
-RUST_WORKSPACE_DIR ?= Rust
+RUST_WORKSPACE_DIR ?= rust
 EFFECTIVE_RUN_ARGS := $(strip $(if $(RUN_ARGS),$(RUN_ARGS),$(ARGS)))
 
 check-tools:
@@ -83,7 +83,17 @@ analyze: check-tools
 	cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=OFF
 	$(SCAN_BUILD) --status-bugs --exclude vendored/SDL --exclude vendored/SDL_image cmake --build build --target cui
 
-precommit: format-check lint analyze
+rust-format-check:
+	cd $(RUST_WORKSPACE_DIR) && cargo fmt --all --check
+
+rust-lint:
+	cd $(RUST_WORKSPACE_DIR) && cargo check -p cui_app
+
+rust-precommit: rust-format-check rust-lint test
+
+c-precommit: format-check lint analyze
+
+precommit: rust-precommit
 
 install-hooks:
 	git config core.hooksPath .githooks
