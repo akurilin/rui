@@ -1,8 +1,10 @@
 pub mod corners;
+#[allow(dead_code)]
+pub mod layout;
 pub mod showcase;
+pub mod test;
 pub mod todo;
 
-use sdl3::pixels::Color;
 use sdl3::render::WindowCanvas;
 
 pub trait AppPage {
@@ -27,11 +29,12 @@ pub enum PageId {
     Todo,
     Corners,
     Showcase,
+    Test,
 }
 
 impl PageId {
     pub fn all() -> &'static [PageId] {
-        &[PageId::Todo, PageId::Corners, PageId::Showcase]
+        &[PageId::Todo, PageId::Corners, PageId::Showcase, PageId::Test]
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -39,6 +42,7 @@ impl PageId {
             PageId::Todo => "todo",
             PageId::Corners => "corners",
             PageId::Showcase => "showcase",
+            PageId::Test => "test",
         }
     }
 
@@ -47,6 +51,7 @@ impl PageId {
             "todo" => Ok(PageId::Todo),
             "corners" => Ok(PageId::Corners),
             "showcase" => Ok(PageId::Showcase),
+            "test" => Ok(PageId::Test),
             _ => Err(format!("Unknown page id: {}", value)),
         }
     }
@@ -97,15 +102,11 @@ impl PageManager {
     }
 }
 
-pub fn clear(canvas: &mut WindowCanvas, color: Color) {
-    canvas.set_draw_color(color);
-    canvas.clear();
-}
-
 fn build_page(page_id: PageId) -> Box<dyn AppPage> {
     match page_id {
         PageId::Todo => Box::new(todo::TodoPage::new()),
         PageId::Corners => Box::new(corners::CornersPage::new()),
         PageId::Showcase => Box::new(showcase::ShowcasePage::new()),
+        PageId::Test => Box::new(test::TestPage::new()),
     }
 }

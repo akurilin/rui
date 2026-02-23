@@ -1,7 +1,7 @@
-.PHONY: configure build test run clean check-tools format format-check lint analyze precommit install-hooks submodules-init submodules-update
+.PHONY: configure build test run clean c-configure c-build c-test c-run c-clean check-tools format format-check lint analyze precommit install-hooks submodules-init submodules-update
 
-C_SOURCES := $(shell find . -type f -name '*.c' -not -path './build/*' -not -path './vendored/*')
-C_HEADERS := $(shell find . -type f -name '*.h' -not -path './build/*' -not -path './vendored/*')
+C_SOURCES := $(shell find . -type f -name '*.c' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*' -not -path './Rust/target/*')
+C_HEADERS := $(shell find . -type f -name '*.h' -not -path './build/*' -not -path './vendored/*' -not -path './rust/target/*' -not -path './Rust/target/*')
 C_FILES := $(C_SOURCES) $(C_HEADERS)
 
 UNAME := $(shell uname)
@@ -19,6 +19,7 @@ CLANG_TIDY := $(LLVM_BIN)/clang-tidy
 SCAN_BUILD := $(LLVM_BIN)/scan-build
 RUN_ARGS ?=
 ARGS ?=
+RUST_WORKSPACE_DIR ?= Rust
 EFFECTIVE_RUN_ARGS := $(strip $(if $(RUN_ARGS),$(RUN_ARGS),$(ARGS)))
 
 check-tools:
@@ -31,15 +32,32 @@ check-tools:
 	done
 
 configure:
+	@echo "No configure step for Rust (default make targets now use the Rust port under $(RUST_WORKSPACE_DIR)/)."
+	@echo "Use 'make c-configure' for the frozen C implementation."
+
+build:
+	cd $(RUST_WORKSPACE_DIR) && cargo build -p cui_app
+
+test:
+	cd $(RUST_WORKSPACE_DIR) && cargo test -p cui_app
+
+run:
+	cd $(RUST_WORKSPACE_DIR) && cargo run -p cui_app -- $(EFFECTIVE_RUN_ARGS)
+
+clean:
+	rm -rf build
+	rm -rf $(RUST_WORKSPACE_DIR)/target
+
+c-configure:
 	cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-build: configure
+c-build: c-configure
 	cmake --build build
 
-test: build
+c-test: c-build
 	ctest --test-dir build --output-on-failure
 
-run: build
+c-run: c-build
 	@if [ -x ./build/Debug/cui ]; then \
 		./build/Debug/cui $(EFFECTIVE_RUN_ARGS); \
 	elif [ -x ./build/Release/cui ]; then \
@@ -51,9 +69,6 @@ run: build
 		echo "Expected one of: ./build/Debug/cui, ./build/Release/cui, ./build/cui"; \
 		exit 1; \
 	fi
-
-clean:
-	rm -rf build
 
 format: check-tools
 	$(CLANG_FORMAT) -i $(C_FILES)

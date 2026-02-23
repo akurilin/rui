@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_WINDOW_WIDTH: u32 = 1024;
 const DEFAULT_WINDOW_HEIGHT: u32 = 768;
+const TEST_PAGE_DEFAULT_HEIGHT: u32 = DEFAULT_WINDOW_HEIGHT * 3 / 2;
 const MIN_WINDOW_WIDTH: u32 = 640;
 const MIN_WINDOW_HEIGHT: u32 = 480;
 
@@ -30,6 +31,7 @@ impl AppConfig {
             height: DEFAULT_WINDOW_HEIGHT,
             page_id: PageId::Todo,
         };
+        let mut height_was_set = false;
 
         let args: Vec<String> = env::args().collect();
         let mut index = 1usize;
@@ -61,6 +63,7 @@ impl AppConfig {
                         return Err(format!("Missing value for {}", option));
                     }
                     config.height = parse_positive_u32(option, &args[index])?;
+                    height_was_set = true;
                 }
                 _ => {
                     return Err(format!("Unknown option: {}", option));
@@ -68,6 +71,10 @@ impl AppConfig {
             }
 
             index += 1;
+        }
+
+        if config.page_id == PageId::Test && !height_was_set {
+            config.height = TEST_PAGE_DEFAULT_HEIGHT;
         }
 
         Ok(StartupDecision::Run(config))
@@ -133,6 +140,11 @@ pub fn run(config: AppConfig) -> Result<(), String> {
                     ..
                 } => page_manager.switch_to(PageId::Showcase),
                 Event::KeyDown {
+                    keycode: Some(Keycode::_4),
+                    repeat: false,
+                    ..
+                } => page_manager.switch_to(PageId::Test),
+                Event::KeyDown {
                     keycode: Some(Keycode::Tab),
                     repeat: false,
                     ..
@@ -177,7 +189,7 @@ fn render_overlay(canvas: &mut WindowCanvas, page_id: PageId) -> Result<(), Stri
     canvas
         .draw_debug_text(
             &format!(
-                "page={} | switch: [1] todo [2] corners [3] showcase [tab] next [esc] quit",
+                "page={} | switch: [1] todo [2] corners [3] showcase [4] test [tab] next [esc] quit",
                 page_id.as_str()
             ),
             (20.0, 16.0),

@@ -1,4 +1,5 @@
-use crate::pages::{AppPage, Viewport, clear};
+use crate::pages::layout::VStack;
+use crate::pages::{AppPage, Viewport};
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
 
@@ -14,7 +15,10 @@ impl AppPage for CornersPage {
     fn update(&mut self, _dt_seconds: f32) {}
 
     fn render(&self, canvas: &mut WindowCanvas, viewport: Viewport) -> Result<(), String> {
-        clear(canvas, Color::RGB(228, 236, 248));
+        VStack::new(Color::RGB(228, 236, 248))
+            .with_spacing(8.0)
+            .fill_both()
+            .render(canvas, viewport)?;
 
         let button_w = 128.0;
         let button_h = 40.0;

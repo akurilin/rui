@@ -9,6 +9,8 @@ This project is focused on building a reusable UI kit in C using SDL3, currently
 - `corners` (`corners_page`): a resize/anchor validation page with eight edge/corner anchored buttons.
 - `showcase` (`showcase_page`): a full widget showcase page that demonstrates every built-in UI element on one screen.
 
+This repository is currently in the middle of a migration from the original C application and UI library to Rust versions of the app and library. The C implementation is staying fixed for now as the migration proceeds in `Rust/`.
+
 ## Current UI
 
 Captured on February 14, 2026 from the current TODO sample page:
@@ -24,18 +26,21 @@ SDL and SDL_image are brought in as Git submodules at `vendored/SDL` and
 
 ## Rust Prototype Status
 
-A Rust bootstrap app now exists under `rust/` while the C implementation remains the current primary/reference implementation.
+A Rust bootstrap app now exists under `Rust/` while the C implementation remains the current primary/reference implementation and is intentionally fixed during the migration.
 
-- Rust workspace root: `rust/Cargo.toml`
-- Rust app crate: `rust/cui_app`
+- Rust workspace root: `Rust/Cargo.toml`
+- Rust app crate: `Rust/cui_app`
 - Rust migration/architecture notes: `docs/rust-port-plan.md`
 
 Current Rust scope:
 
 - SDL3 app loop and window lifecycle
 - startup page selection (`--page`)
-- runtime page switching (`1`, `2`, `3`, `Tab`)
-- placeholder page rendering for `todo`, `corners`, and `showcase`
+- runtime page switching (`1`, `2`, `3`, `4`, `Tab`)
+- placeholder page rendering for `todo`, `corners`, `showcase`, and `test`
+- shared stack layout engine with `VStack`/`HStack` wrappers (axis-driven internally)
+- stack sizing modes (prototype): `fit-content`, `fill-parent`, `fixed(px)`, `grow(weight)`
+- nested stack layout test page built from stacks/color blocks for fit/fill/grow visual validation
 
 ## Architecture Overview
 
@@ -44,7 +49,7 @@ The codebase is split into:
 - a reusable UI kit (`include/ui`, `src/ui`) for concrete widgets and shared element primitives,
 - a UI system/runtime layer (`include/system`, `src/system`) for orchestration and dispatch,
 - an example app layer (`include/pages`, `src/pages`) hosted by a small application shell (`main.c`),
-- a Rust prototype app (`rust/cui_app`) that is incrementally replacing the C implementation.
+- a Rust prototype app (`Rust/cui_app`) that is incrementally replacing the C implementation.
 
 - `main.c` is composition/root wiring only: parse startup flags, select a page by id, create window/renderer, initialize `ui_runtime`, create the active page, and run the main loop.
 - `todo_page` is the sample TODO app and owns todo-specific model state plus screen-level UI composition.
@@ -228,14 +233,14 @@ cmake --build build
 From repository root:
 
 ```bash
-cd rust
+cd Rust
 cargo run -p cui_app -- --page todo
 ```
 
 Optional startup size/page examples:
 
 ```bash
-cd rust
+cd Rust
 cargo run -p cui_app -- --page corners --width 1000 --height 700
 cargo run -p cui_app -- --page showcase --width 1100 --height 760
 ```
@@ -243,16 +248,20 @@ cargo run -p cui_app -- --page showcase --width 1100 --height 760
 Show Rust app help:
 
 ```bash
-cd rust
+cd Rust
 cargo run -p cui_app -- --help
 ```
 
 ## Makefile shortcuts:
 ```
-make build    # configure + build
-make test     # build + run CTest suite
-make run      # build + run build/Debug/cui, build/Release/cui, or build/cui (use RUN_ARGS/ARGS for app flags)
-make clean    # remove build directory
+make build    # build Rust app (Rust/cui_app)
+make test     # run Rust tests for cui_app
+make run      # run Rust app via cargo (use RUN_ARGS/ARGS for app flags)
+make clean    # remove Rust target dir and legacy C build dir
+make c-configure # configure frozen C implementation (CMake)
+make c-build   # build frozen C implementation
+make c-test    # run CTest suite for frozen C implementation
+make c-run     # run frozen C app binary (use RUN_ARGS/ARGS for app flags)
 make format   # apply clang-format to non-vendored .c/.h files
 make lint     # run clang-tidy checks
 make analyze  # run Clang Static Analyzer for the cui target via scan-build
@@ -291,50 +300,62 @@ If Homebrew does not add LLVM binaries to your shell path automatically, add:
 export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 ```
 
-## Run:
-The executable is generated under the build configuration directory. Depending
-on your generator/configuration, run one of:
+## Run (Rust Default):
+The default app run path is now the Rust port (`Rust/cui_app`).
 
+Run via Cargo from the repository root:
+
+```bash
+cd Rust
+cargo run -p cui_app -- --page todo
 ```
-./build/Debug/cui
-./build/Release/cui
-./build/cui
+
+Or use the Makefile shortcut from the repository root:
+
+```bash
+make run
 ```
 
 Optional startup window size:
 
-```
-./build/cui --width <width> --height <height>
+```bash
+make run RUN_ARGS="--width <width> --height <height>"
 ```
 
-Optional startup page id (`<id>` is derived from `src/pages/<id>_page.c`):
+Optional startup page id (`<id>` is one of `todo`, `corners`, `showcase`, `test`):
 
-```
-./build/cui --page <id>
+```bash
+make run RUN_ARGS="--page <id>"
 ```
 
 Example:
 
-```
-./build/cui --page todo -w 800 -h 600
+```bash
+make run RUN_ARGS="--page todo -w 800 -h 600"
 ```
 
 Corners anchor test page:
 
-```
-./build/cui --page corners
+```bash
+make run RUN_ARGS="--page corners"
 ```
 
 Showcase page:
 
+```bash
+make run RUN_ARGS="--page showcase"
 ```
-./build/cui --page showcase
+
+Test page (stack layout testbed):
+
+```bash
+make run RUN_ARGS="--page test"
 ```
 
 Show command-line help:
 
-```
-./build/cui --help
+```bash
+make run RUN_ARGS="--help"
 ```
 
 Pass app args through `make run`:
@@ -351,6 +372,16 @@ make run ARGS="--page corners --width 1000 --height 700"
 
 ```bash
 make run ARGS="--page showcase --width 1100 --height 760"
+```
+
+## Run (Legacy C Reference)
+The original C implementation remains available and fixed while migration continues.
+
+Build and run it explicitly with:
+
+```bash
+make c-build
+make c-run
 ```
 
 ## Screenshot Capture (macOS)

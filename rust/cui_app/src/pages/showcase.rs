@@ -1,4 +1,5 @@
-use crate::pages::{AppPage, Viewport, clear};
+use crate::pages::layout::VStack;
+use crate::pages::{AppPage, Viewport};
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
 
@@ -18,7 +19,10 @@ impl AppPage for ShowcasePage {
     }
 
     fn render(&self, canvas: &mut WindowCanvas, viewport: Viewport) -> Result<(), String> {
-        clear(canvas, Color::RGB(245, 238, 230));
+        VStack::new(Color::RGB(245, 238, 230))
+            .with_spacing(8.0)
+            .fill_both()
+            .render(canvas, viewport)?;
 
         let top = 80.0;
         let left = 40.0;

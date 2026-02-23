@@ -1,4 +1,5 @@
-use crate::pages::{AppPage, Viewport, clear};
+use crate::pages::layout::VStack;
+use crate::pages::{AppPage, Viewport};
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
 
@@ -20,7 +21,10 @@ impl AppPage for TodoPage {
     }
 
     fn render(&self, canvas: &mut WindowCanvas, viewport: Viewport) -> Result<(), String> {
-        clear(canvas, Color::RGB(241, 241, 238));
+        VStack::new(Color::RGB(241, 241, 238))
+            .with_spacing(8.0)
+            .fill_both()
+            .render(canvas, viewport)?;
 
         canvas.set_draw_color(Color::RGB(31, 58, 80));
         canvas
