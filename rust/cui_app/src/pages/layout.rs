@@ -75,6 +75,12 @@ impl ColorBlock {
         self
     }
 
+    pub fn size(mut self, width: SizeMode, height: SizeMode) -> Self {
+        self.size.width = width;
+        self.size.height = height;
+        self
+    }
+
     pub fn with_width(mut self, mode: SizeMode) -> Self {
         self.size.width = mode;
         self
@@ -127,6 +133,26 @@ impl LayoutNode {
         match axis {
             StackAxis::Vertical => spec.width,
             StackAxis::Horizontal => spec.height,
+        }
+    }
+
+    fn coerce_main_grow_to_fit(&mut self, axis: StackAxis) {
+        let size = match self {
+            LayoutNode::Stack(stack) => &mut stack.size,
+            LayoutNode::Block(block) => &mut block.size,
+        };
+
+        match axis {
+            StackAxis::Vertical => {
+                if matches!(size.height, SizeMode::Grow(_)) {
+                    size.height = SizeMode::FitContent;
+                }
+            }
+            StackAxis::Horizontal => {
+                if matches!(size.width, SizeMode::Grow(_)) {
+                    size.width = SizeMode::FitContent;
+                }
+            }
         }
     }
 }
@@ -196,10 +222,38 @@ impl Stack {
 
     fn measure(&self, available: Size2) -> Size2 {
         let intrinsic = self.measure_intrinsic(available);
-        Size2::new(
-            resolve_dimension(self.size.width, intrinsic.w, available.w),
-            resolve_dimension(self.size.height, intrinsic.h, available.h),
-        )
+        let has_main_grow = self.has_main_axis_grow_child();
+        let resolved_main = match self.axis {
+            StackAxis::Vertical => resolve_stack_main_dimension(
+                self.size.height,
+                intrinsic.h,
+                available.h,
+                has_main_grow,
+            ),
+            StackAxis::Horizontal => resolve_stack_main_dimension(
+                self.size.width,
+                intrinsic.w,
+                available.w,
+                has_main_grow,
+            ),
+        };
+
+        match self.axis {
+            StackAxis::Vertical => {
+                let measured = Size2::new(
+                    resolve_dimension(self.size.width, intrinsic.w, available.w),
+                    resolved_main,
+                );
+                measured
+            }
+            StackAxis::Horizontal => {
+                let measured = Size2::new(
+                    resolved_main,
+                    resolve_dimension(self.size.height, intrinsic.h, available.h),
+                );
+                measured
+            }
+        }
     }
 
     fn measure_intrinsic(&self, available: Size2) -> Size2 {
@@ -214,11 +268,7 @@ impl Stack {
         let mut measured_children = 0usize;
 
         for child in &self.children {
-            if matches!(child.node.main_mode(self.axis), SizeMode::Grow(_)) {
-                continue;
-            }
-
-            let child_size = child.node.measure(inner_available);
+            let child_size = self.measure_child_base_size(&child.node, inner_available);
             let axis_size = to_axis(self.axis, child_size);
             content_main += axis_size.main;
             content_cross = content_cross.max(axis_size.cross);
@@ -264,25 +314,22 @@ impl Stack {
         };
 
         let mut measured_sizes: Vec<Size2> = Vec::with_capacity(self.children.len());
-        let mut total_fixed_main = 0.0f32;
+        let mut total_base_main = 0.0f32;
         let mut total_grow_weight = 0.0f32;
 
         for child in &self.children {
-            match child.node.main_mode(self.axis) {
-                SizeMode::Grow(weight) if weight > 0.0 => {
-                    measured_sizes.push(Size2::new(0.0, 0.0));
+            let measured = self.measure_child_base_size(&child.node, inner_size);
+            total_base_main += to_axis(self.axis, measured).main;
+            if let SizeMode::Grow(weight) = child.node.main_mode(self.axis) {
+                if weight > 0.0 {
                     total_grow_weight += weight;
                 }
-                _ => {
-                    let measured = child.node.measure(inner_size);
-                    total_fixed_main += to_axis(self.axis, measured).main;
-                    measured_sizes.push(measured);
-                }
             }
+            measured_sizes.push(measured);
         }
 
         let available_main = to_axis_rect(self.axis, inner_rect).main;
-        let remaining_main = (available_main - total_fixed_main - gaps).max(0.0);
+        let extra_main = (available_main - total_base_main - gaps).max(0.0);
 
         let mut cursor_main = to_axis_rect(self.axis, inner_rect).main_origin;
 
@@ -292,7 +339,7 @@ impl Stack {
 
             let child_main = match child.node.main_mode(self.axis) {
                 SizeMode::Grow(weight) if weight > 0.0 && total_grow_weight > 0.0 => {
-                    remaining_main * (weight / total_grow_weight)
+                    current_axis.main + extra_main * (weight / total_grow_weight)
                 }
                 SizeMode::Fixed(value) => value.max(0.0),
                 SizeMode::FillParent => available_main,
@@ -323,6 +370,21 @@ impl Stack {
         }
 
         Ok(())
+    }
+
+    fn measure_child_base_size(&self, child: &LayoutNode, available: Size2) -> Size2 {
+        let mut node = child.clone();
+        node.coerce_main_grow_to_fit(self.axis);
+        node.measure(available)
+    }
+
+    fn has_main_axis_grow_child(&self) -> bool {
+        self.children
+            .iter()
+            .any(|child| match child.node.main_mode(self.axis) {
+                SizeMode::Grow(weight) => weight > 0.0,
+                _ => false,
+            })
     }
 }
 
@@ -449,6 +511,18 @@ fn resolve_dimension(mode: SizeMode, intrinsic: f32, available: f32) -> f32 {
         SizeMode::FillParent => available.max(0.0),
         SizeMode::Fixed(value) => value.max(0.0).min(available.max(0.0)),
         SizeMode::Grow(_) => available.max(0.0),
+    }
+}
+
+fn resolve_stack_main_dimension(
+    mode: SizeMode,
+    intrinsic: f32,
+    available: f32,
+    has_main_grow_child: bool,
+) -> f32 {
+    match mode {
+        SizeMode::FitContent if has_main_grow_child => available.max(0.0),
+        _ => resolve_dimension(mode, intrinsic, available),
     }
 }
 
