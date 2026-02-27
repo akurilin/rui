@@ -1,4 +1,4 @@
-.PHONY: help build run test format format-check lint precommit clean
+.PHONY: help install-hooks build run test format format-check lint precommit clean
 
 APP ?= cui_app
 RUN_ARGS ?=
@@ -8,6 +8,7 @@ EFFECTIVE_RUN_ARGS := $(strip $(if $(RUN_ARGS),$(RUN_ARGS),$(if $(ARGS),$(ARGS),
 
 help:
 	@echo "Rust workspace Makefile targets:"
+	@echo "  make install-hooks # git config core.hooksPath .githooks"
 	@echo "  make build        # cargo build -p $(APP)"
 	@echo "  make run          # cargo run -p $(APP) -- <defaults or RUN_ARGS|ARGS>"
 	@echo "  make test         # cargo test -p $(APP)"
@@ -16,6 +17,9 @@ help:
 	@echo "  make lint         # cargo clippy -p $(APP) --all-targets --all-features"
 	@echo "  make precommit    # format-check + lint + test"
 	@echo "  make clean        # remove target/"
+
+install-hooks:
+	git config core.hooksPath .githooks
 
 build:
 	cargo build -p $(APP)

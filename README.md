@@ -1,5 +1,12 @@
 # rui
 
+[![CI](https://github.com/akurilin/rui/actions/workflows/ci.yml/badge.svg)](https://github.com/akurilin/rui/actions/workflows/ci.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akurilin/rui)
+[![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![SDL3](https://img.shields.io/badge/SDL3-via%20rust--sdl3-1f425f)](https://github.com/vhspace/sdl3-rs)
+[![style: rustfmt](https://img.shields.io/badge/style-rustfmt-93450a.svg)](https://github.com/rust-lang/rustfmt)
+[![lint: clippy](https://img.shields.io/badge/lint-clippy-3A7CFF.svg)](https://github.com/rust-lang/rust-clippy)
+
 Rust SDL3 UI app workspace.
 
 ## WIP Notice
@@ -14,13 +21,16 @@ This repository is now Rust-only. The legacy C/CMake implementation has been rem
 
 Current app scope:
 
-- SDL3 app loop and window lifecycle
+- SDL3 app loop with resizable window lifecycle
 - startup viewport sizing (`--width`, `--height`)
 - startup page selection (`--page test`)
 - single active page: `test`
-- stack layout primitives in `cui_app/src/pages/layout.rs`
+- stack layout primitives in `cui_app/src/pages/layout.rs` (`VStack`, `HStack`, `SizeMode`, overlays)
 - SVG icon rendering via SDL_image on the test page
-- TTF font rendering via SDL_ttf for right-pane menu labels on the test page
+- TTF font rendering via SDL_ttf for right-pane menu labels, including wrapped text rows
+- lightweight overlay status text (`page=<id> | layout test mode | [esc] quit`)
+- repo quality checks wired through `make precommit` (`cargo fmt --check`, `cargo clippy`, `cargo test`)
+- tests currently act as a compile/run smoke check (no unit tests defined yet)
 
 ## Main Page Screenshot
 
@@ -31,6 +41,8 @@ Current app scope:
 - `Cargo.toml`: workspace manifest
 - `Cargo.lock`: workspace lockfile
 - `Makefile`: Rust development shortcuts
+- `.githooks/pre-commit`: local pre-commit checks
+- `.github/workflows/ci.yml`: GitHub Actions CI workflow
 - `cui_app/`: application crate
 - `assets/icons/`: SVG icon assets used by prototype UI elements
 - `assets/fonts/`: bundled TTF font assets used by UI text rendering
@@ -40,6 +52,7 @@ Current app scope:
 ## Requirements
 
 - Rust toolchain (`cargo`, `rustfmt`, `clippy`)
+- GNU `make`
 - macOS for `scripts/capture_app_window.sh` (uses `swift` + `screencapture`)
 
 ## Build, Run, Test
@@ -62,6 +75,7 @@ make format
 make format-check
 make lint
 make precommit
+make install-hooks
 ```
 
 `make run` defaults to:
@@ -91,7 +105,7 @@ Show help:
 cargo run -p cui_app -- --help
 ```
 
-## Hooks
+## Git Hooks (Local)
 
 Install repo-managed Git hooks:
 
@@ -99,11 +113,31 @@ Install repo-managed Git hooks:
 git config core.hooksPath .githooks
 ```
 
-The pre-commit hook runs:
+Or run:
+
+```bash
+make install-hooks
+```
+
+Current pre-commit flow:
 
 ```bash
 make precommit
 ```
+
+`make precommit` runs:
+
+- `cargo fmt --all --check`
+- `cargo clippy -p cui_app --all-targets --all-features`
+- `cargo test -p cui_app`
+
+## GitHub Actions (CI)
+
+GitHub Actions runs the same baseline checks from `.github/workflows/ci.yml` on:
+
+- `push`
+- `pull_request`
+- manual trigger (`workflow_dispatch`)
 
 ## Screenshot Capture (macOS)
 

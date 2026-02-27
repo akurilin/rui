@@ -1,13 +1,18 @@
+# Runs the same checks as the local pre-commit hook
+# on every push and pull request.
 name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  rust:
+  rust-checks:
+    name: Rust Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -19,5 +24,8 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Run formatting, lint, and tests
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run formatting, linting, and tests
         run: make precommit
