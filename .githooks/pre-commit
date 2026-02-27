@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 set -eu
 
-echo "Running pre-commit checks: format-check, lint, analyze"
+echo "Running pre-commit checks: rust-format-check, rust-lint, test"
 make precommit
