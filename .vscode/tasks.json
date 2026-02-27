@@ -2,30 +2,37 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "CMake Configure (Debug)",
+            "label": "Cargo Build (Debug)",
             "type": "shell",
-            "command": "cmake",
+            "command": "cargo",
             "args": [
-                "-S", ".",
-                "-B", "build",
-                "-DCMAKE_BUILD_TYPE=Debug",
-                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "CMake Build (Debug)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build", "build"
+                "build",
+                "-p",
+                "cui_app"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "dependsOn": "CMake Configure (Debug)",
-            "problemMatcher": "$gcc"
+            "problemMatcher": ["$rustc"]
+        },
+        {
+            "label": "Cargo Run (Test Page)",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "-p",
+                "cui_app",
+                "--",
+                "--page",
+                "test",
+                "--width",
+                "2304",
+                "--height",
+                "1296"
+            ],
+            "problemMatcher": ["$rustc"]
         }
     ]
 }

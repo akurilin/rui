@@ -2,12 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug cui",
+            "name": "Debug cui_app",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/cui",
+            "program": "${workspaceFolder}/target/debug/cui_app",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake Build (Debug)"
+            "preLaunchTask": "Cargo Build (Debug)"
         }
     ]
 }

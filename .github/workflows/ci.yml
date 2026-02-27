@@ -7,42 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  rust:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository (with submodules)
+      - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          submodules: recursive
+          components: rustfmt, clippy
 
-      - name: Install LLVM toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format clang-tidy clang-tools
-
-      - name: Install SDL3 build dependencies
-        run: |
-          sudo apt-get install -y \
-            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev \
-            libwayland-dev libwayland-egl-backend-dev wayland-protocols \
-            libgl-dev libgles-dev libegl-dev \
-            libdbus-1-dev libibus-1.0-dev \
-            libasound2-dev libpulse-dev \
-            libudev-dev libdecor-0-dev libxkbcommon-dev \
-            libxtst-dev libxfixes-dev
-
-      - name: Check formatting
-        run: make format-check
-
-      - name: Build
-        run: make build
-
-      - name: Run tests
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Lint
-        run: make lint
-
-      - name: Static analysis
-        run: make analyze
+      - name: Run formatting, lint, and tests
+        run: make precommit

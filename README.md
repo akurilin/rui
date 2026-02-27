@@ -1,427 +1,103 @@
-[![CI](https://github.com/akurilin/cui/actions/workflows/ci.yml/badge.svg)](https://github.com/akurilin/cui/actions/workflows/ci.yml)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akurilin/cui)
+# rui
 
-# Project description
-
-This project is focused on building a reusable UI kit in C using SDL3, currently targeting macOS. The sample app currently includes three pages:
-
-- `todo` (`todo_page`): the primary sample application showing realistic widget composition and interactions.
-- `corners` (`corners_page`): a resize/anchor validation page with eight edge/corner anchored buttons.
-- `showcase` (`showcase_page`): a full widget showcase page that demonstrates every built-in UI element on one screen.
-
-This repository is currently in the middle of a migration from the original C application and UI library to Rust versions of the app and library. The C implementation is staying fixed for now as the migration proceeds in `rust/`.
+Rust SDL3 UI app workspace.
 
 ## Project Status
 
-This project is very much a work in progress and is still far from feature complete. Expect missing capabilities, rough edges, and ongoing breaking changes while the Rust migration and layout/runtime foundations continue to evolve.
+This repository is now Rust-only. The legacy C/CMake implementation has been removed.
 
-## Current UI
-
-Captured on February 14, 2026 from the current TODO sample page:
-
-![Main page UI screenshot (2026-02-14)](assets/screenshots/main-page-2026-02-14.png)
-
-Captured on February 18, 2026 from the corners page as a showcase of anchoring behavior when the window is resized:
-
-![Corners page anchoring screenshot (2026-02-18)](assets/screenshots/corners-page-anchoring-2026-02-18.png)
-
-SDL and SDL_image are brought in as Git submodules at `vendored/SDL` and
-`vendored/SDL_image`.
-
-## Rust Prototype Status
-
-A Rust bootstrap app now exists under `rust/` while the C implementation remains the current primary/reference implementation and is intentionally fixed during the migration.
-
-- Rust workspace root: `rust/Cargo.toml`
-- Rust app crate: `rust/cui_app`
-- Rust migration/architecture notes: `docs/rust-port-plan.md`
-
-Current Rust scope:
+Current app scope:
 
 - SDL3 app loop and window lifecycle
 - startup viewport sizing (`--width`, `--height`)
-- startup page selection constrained to `--page test`
-- single active Rust page: `test` (container/stack layout testbed)
-- default Rust startup size set to `2304x1296` (60% of 4K `3840x2160`)
-- shared stack layout engine with `VStack`/`HStack` wrappers (axis-driven internally)
-- stack sizing modes (prototype): `fit-content`, `fill-parent`, `fixed(px)`, `grow(weight)`
-- stack child layout modes: flow-participating and parent-relative overlay (non-participating)
-- overlay alignment modes: `start`, `center`, `end` per axis
-- `TextLabel` layout node for reusable in-layout debug/annotation text
-- nested stack layout test page built from stacks/color blocks for fit/fill/grow visual validation
+- startup page selection (`--page test`)
+- single active page: `test`
+- stack layout primitives in `cui_app/src/pages/layout.rs`
 
-## Architecture Overview
+## Repository Layout
 
-The codebase is split into:
+- `Cargo.toml`: workspace manifest
+- `Cargo.lock`: workspace lockfile
+- `Makefile`: Rust development shortcuts
+- `cui_app/`: application crate
+- `docs/`: design and planning notes for Rust layout/runtime evolution
+- `scripts/capture_app_window.sh`: macOS helper to capture app window screenshots
 
-- a reusable UI kit (`include/ui`, `src/ui`) for concrete widgets and shared element primitives,
-- a UI system/runtime layer (`include/system`, `src/system`) for orchestration and dispatch,
-- an example app layer (`include/pages`, `src/pages`) hosted by a small application shell (`main.c`),
-- a Rust prototype app (`rust/cui_app`) that is incrementally replacing the C implementation.
+## Requirements
 
-- `main.c` is composition/root wiring only: parse startup flags, select a page by id, create window/renderer, initialize `ui_runtime`, create the active page, and run the main loop.
-- `todo_page` is the sample TODO app and owns todo-specific model state plus screen-level UI composition.
-- `corners_page` is a lightweight anchor test screen used to verify corner/edge placement during resize.
-- `showcase_page` is a one-screen widget gallery used to validate and demo all built-in controls.
-- `ui_runtime` is the lifecycle owner + dispatcher for all elements.
-- `ui_element` is the common base interface for polymorphism in C.
-- `app_page_shell` is the shared page scaffold that creates/registers a mandatory `ui_window` root and centralizes page element teardown.
+- Rust toolchain (`cargo`, `rustfmt`, `clippy`)
+- macOS for `scripts/capture_app_window.sh` (uses `swift` + `screencapture`)
 
-### UI "Inheritance" Model (C-style)
-
-There is no language-level inheritance in C, so this project uses struct embedding + a virtual function table:
-
-- Every concrete widget embeds `ui_element base;` as its first field.
-- Every concrete widget installs a `ui_element_ops` table (`handle_event`, optional `hit_test`,
-  optional `can_focus`, optional `set_focus`, `update`, `render`, `destroy`).
-- `ui_runtime` stores all widgets as `ui_element *` and calls the ops table, which gives runtime polymorphism similar to a base-class interface.
-
-Inheritance chain in this project:
-
-```text
-ui_element (base type)
-  -> ui_window
-  -> ui_pane
-  -> ui_button
-  -> ui_checkbox
-  -> ui_text
-  -> ui_text_input
-  -> ui_image
-  -> ui_slider
-  -> ui_segment_group
-  -> ui_hrule
-  -> ui_layout_container
-  -> ui_scroll_view
-  -> ui_fps_counter
-```
-
-### Layout & Sizing Model
-
-The UI uses a **top-down width, bottom-up height** convention:
-
-- **Width flows down**: parent elements push widths onto children by writing `child->rect.w`. A `ui_scroll_view` sets the `ui_layout_container`'s `x`/`w`, and the container in turn sets each child's `x`/`w`.
-- **Height flows up**: children own their heights (`rect.h` is set at creation or during update). Parents read `child->rect.h` to position subsequent children and to auto-size their own `rect.h` to fit content.
-
-`ui_layout_container` supports both **vertical** and **horizontal** stacking. In vertical mode, children are positioned top-to-bottom and the container stretches each child's width to fill; in horizontal mode, children are positioned left-to-right and the container stretches each child's height. For horizontal rows, right-aligned children keep `rect.x` as a right-edge inset instead of participating in left-flow x placement. Layout uses fixed 8 px padding and 8 px inter-child spacing.
-
-Layout is still **imperative**, but it now has an explicit split between measurement and arrangement. Default element behavior remains fixed-size/fixed-rect (no-op measure, direct-rect arrange). `ui_layout_container` and `ui_scroll_view` opt into explicit measure/arrange passes. Pages compute viewport geometry via `compute_page_geometry`, write desired rects directly onto element structs, then call `arrange_root` once to cascade measure/arrange through the entire window child tree.
-
-Children track a **parent pointer and alignment anchors** for relative positioning. `ui_element_screen_rect()` resolves each element's window-space rectangle by walking the parent chain and applying horizontal/vertical anchor modes. This enables reliable anchoring (for example, bottom-right HUD elements) while preserving explicit ownership through container/context registration.
-
-**The cascade in practice** (sidebar example): `ui_scroll_view` sets the container's `x`/`w` → `ui_layout_container` sets each child's `x`/`w` → container reads children's `h` to auto-size → scroll view reads the container's `h` to determine scroll bounds.
-
-Key files:
-
-- `include/pages/app_page.h`: generic page-ops interface plus build-generated page table declarations.
-- `include/pages/page_shell.h`, `src/pages/page_shell.c`: shared page shell with mandatory root-window setup/resize, `arrange_root` cascade trigger, and runtime registration teardown helpers.
-- `include/pages/corners_page.h`, `src/pages/corners_page.c`: resize-anchor test page with eight edge/corner-aligned buttons.
-- `include/pages/showcase_page.h`, `src/pages/showcase_page.c`: all-widgets demo page with interactive controls inside a scrollable layout.
-- `include/pages/todo_page.h`, `src/pages/todo_page.c`: todo page public lifecycle API + private page logic (task state, callbacks, and widget composition).
-- `CMakeLists.txt` (page discovery): scans `src/pages/*_page.c` and generates `build/generated/page_index.c`, which exports `app_pages[]` for runtime page selection.
-- `include/ui/ui_element.h`, `src/ui/ui_element.c`: base type, virtual ops contract, and shared border helpers.
-- `include/system/ui_runtime.h`, `src/system/ui_runtime.c`: dynamic element list, ownership, event/update/render dispatch.
-- `include/ui/ui_pane.h`, `src/ui/ui_pane.c`: rectangle fill + border visual group element.
-- `include/ui/ui_button.h`, `src/ui/ui_button.c`: clickable element with press/release semantics and callback.
-- `include/ui/ui_checkbox.h`, `src/ui/ui_checkbox.c`: labeled toggle control with boolean change callback.
-- `include/ui/ui_text.h`, `src/ui/ui_text.c`: static debug-text element.
-- `include/ui/ui_hrule.h`, `src/ui/ui_hrule.c`: thin horizontal divider line with configurable inset.
-- `include/ui/ui_image.h`, `src/ui/ui_image.c`: image element with fallback texture behavior.
-- `include/ui/ui_slider.h`, `src/ui/ui_slider.c`: horizontal slider with min/max range and value callback.
-- `include/ui/ui_text_input.h`, `src/ui/ui_text_input.c`: single-line text field with ui_runtime-managed focus, keyboard input, and submit callback.
-- `include/ui/ui_segment_group.h`, `src/ui/ui_segment_group.c`: segmented control (radio-button group) with selection callback.
-- `include/ui/ui_layout_container.h`, `src/ui/ui_layout_container.c`: vertical/horizontal stack container with auto-sizing.
-- `include/ui/ui_scroll_view.h`, `src/ui/ui_scroll_view.c`: scrollable viewport wrapper with mouse-wheel input and clip-rect rendering.
-- `include/ui/ui_fps_counter.h`, `src/ui/ui_fps_counter.c`: self-updating FPS label anchored to viewport bottom-right.
-- `include/ui/ui_window.h`, `src/ui/ui_window.c`: root tree element that owns child elements and forwards measure/arrange/event/update/render traversal.
-- `include/util/fail_fast.h`, `src/util/fail_fast.c`: shared fail-fast logger/abort helper for unrecoverable internal errors.
-
-### Frame/Lifecycle Flow
-
-Per frame, `main.c` drives the UI system in this order:
-
-1. Poll SDL events and forward each to `ui_runtime_handle_event`.
-2. Call selected page `update()` for page-level per-frame work (for example, header clock refresh in `todo_page`).
-3. Call `ui_runtime_update(delta_seconds)`.
-4. Clear renderer and call `ui_runtime_render(renderer)`.
-5. Present frame.
-
-`ui_runtime` behavior rules:
-
-- Dispatch `handle_event` only for `enabled` elements.
-- Route text and keyboard events only to the currently focused element.
-- Route pointer events by front-to-back hit testing and stop at first handler.
-- Capture pointer interaction on left press and release capture on left release.
-- Dispatch `update` only for `enabled` elements.
-- Dispatch `render` only for `visible` elements.
-- Destroy all registered elements via each element's `destroy` op during `ui_runtime_destroy`.
-
-### Page Discovery & Startup Selection
-
-- Page ids are derived from filenames using `src/pages/<id>_page.c`.
-- CMake discovers all `*_page.c` files and generates `build/generated/page_index.c`.
-- Each page exports `<id>_page_ops` (for example, `todo_page_ops`, `corners_page_ops`).
-- `main.c` selects the startup page with `--page <id>`.
-- `--help` prints the currently discovered page ids.
-
-### Startup vs Resize Control Flow
-
-These are two distinct flows in the current system.
-
-#### 1) First launch: how elements get their initial size/position
-
-1. `main.c` parses startup options (`--page`, `--width`, `--height`), resolves the page descriptor from build-generated `app_pages[]`, initializes SDL + window + renderer, initializes `ui_runtime`, then calls selected page `create(window, &context, width, height)`.
-2. `todo_page_create` stores viewport dimensions and computes top-level geometry (content width, header widths, list height, footer positions).
-3. Most top-level widgets are created with explicit rects derived from those computed values (header, input row, rules, list frame, footer, etc.).
-4. The task list body is built as:
-   - `ui_scroll_view` (viewport/clipping),
-   - containing a vertical `ui_layout_container` (`rows_container`),
-   - containing one horizontal `ui_layout_container` per task row.
-5. Each task row creates leaf controls (number, checkbox, title, time, delete button) with fixed row/column dimensions.
-6. Every page initializes `app_page_shell`, which creates/registers a single `ui_window` root into `ui_runtime`; that root owns the page element tree.
-7. `todo_page` performs an explicit page layout pass (`compute_page_geometry` + `arrange_page_layout`):
-   - page code writes desired rects directly onto element structs from viewport-derived geometry,
-   - then calls `arrange_root` once at the end of the arrange pass,
-   - the window root cascades measure/arrange through the entire child tree (containers auto-size, scroll views resolve bounds).
-8. Absolute render/hit-test rects are resolved from parent-relative rects via parent chain + alignment anchors (`ui_element_screen_rect`).
-
-In short: initial geometry is seeded by page code writing rects, then finalized by a single window-root cascade triggered via `arrange_root`.
-
-#### 2) Runtime resize: user drags window
-
-1. SDL emits `SDL_EVENT_WINDOW_RESIZED`.
-2. `main.c` handles it by:
-   - updating renderer logical presentation to the new logical size,
-   - calling selected page `resize(page_instance, new_w, new_h)`.
-3. `todo_page_resize` (for the TODO page implementation) updates page viewport fields and runs `compute_page_geometry` + `arrange_page_layout`.
-4. Page arrange writes updated rects directly onto element structs:
-   - stretches/shifts header panes,
-   - right-anchors add/filter controls,
-   - resizes list frame + scroll view + rows container,
-   - repositions footer elements.
-5. `arrange_root` is called once at the end, cascading measure/arrange through the window child tree.
-6. Page update/runtime update continue with already-arranged rects for the new viewport.
-7. `ui_runtime_render` then draws the updated layout for that frame.
-
-In short: resize writes page-level geometry directly onto elements, then triggers a single window-root cascade; containers no longer self-layout in event/update paths.
-
-### Ownership Rules
-
-- Element constructors (`ui_button_create`, `ui_pane_create`, etc.) allocate on the heap and return ownership to caller.
-- After `ui_runtime_add` succeeds, ownership transfers to `ui_runtime`.
-- Sample page lifecycle callbacks (`create`/`resize`/`update`/`destroy`) follow a fail-fast policy for unrecoverable internal failures and invalid internal state: they log a critical error and abort instead of returning recoverable errors.
-- `todo_page_destroy` removes and destroys elements that were registered by the page, then frees page-owned task/model storage.
-
-## Roadmap
-
-This project intentionally stays minimal. The following capabilities are explicitly out of scope:
-
-1. **Real text rendering** — Widgets currently use `SDL_RenderDebugText` (fixed 8x8 monospace glyphs), and we do not plan to add full font loading/rendering systems.
-2. **Keyboard navigation and focus traversal** — Focus/capture routing exists in `ui_runtime`, but tab ordering, arrow-key traversal, and focus ring rendering are not planned.
-3. **Styling and theming** — Widget colors/padding/spacing remain construction-time values; a shared theme/style inheritance system is not planned.
-
-Potential future enhancements (still under consideration):
-
-1. **Tree-aware propagation and overlay layers** — Event routing is hit-tested with focus/capture today, but explicit parent/child target paths, bubble/capture phases, and overlay layers could improve modals, dropdowns, tooltips, and context menus.
-2. **Richer layout primitives** — Layout is currently vertical/horizontal stacking with fixed 8 px padding/spacing. Proportional/weighted sizing, min/max constraints, grid layout, alignment control, and configurable spacing may be added later.
-3. **Dropdown/select control** — A segmented control exists today, but a true dropdown/select widget (button + popup list + overlay/z-order handling + outside-click dismissal) is still missing.
-4. **Constraint-style responsive layout** — Anchors and stack stretching are implemented, but full responsive constraints (min/max sizing rules, percentage/fill policies, and window-relative pin/stretch behavior across arbitrary element trees) are not.
-5. **Data-driven UI description (markup/DSL)** — UI is currently composed in C only. A simple declarative format (for example JSON/TOML/custom DSL) plus loader/binder would make screen iteration and reuse faster.
-6. **Animation system with easing curves** — There is no built-in tween/animation layer yet. Adding time-based transitions (position, size, color, opacity) with reusable easing curves would improve interaction quality.
-7. **Broader automated test coverage** — CTest currently runs a focused hierarchy test binary. Wider coverage is still needed for widget behavior, focus/input routing, layout/resize regressions, and integration-level page scenarios.
-8. **Sample-page parity with TODO workflow coverage** — all core widgets are now demonstrated on the `showcase` page, but TODO-specific end-to-end scenarios (task-focused flows with richer widget combinations) can still be expanded.
-
-## Configure and Build:
-```
-cmake -S . -B build
-cmake --build build
-```
-
-## Rust Prototype Build and Run
+## Build, Run, Test
 
 From repository root:
 
 ```bash
-cd rust
+cargo build -p cui_app
 cargo run -p cui_app
+cargo test -p cui_app
 ```
 
-Optional startup size/page examples:
+Or use Make targets:
 
 ```bash
-cd rust
-cargo run -p cui_app -- --width 2560 --height 1440
-cargo run -p cui_app -- --page test --width 1920 --height 1080
-```
-
-Show Rust app help:
-
-```bash
-cd rust
-cargo run -p cui_app -- --help
-```
-
-From the Rust workspace folder, a local `Makefile` is available for common tasks:
-
-```bash
-cd rust
+make build
 make run
 make test
 make format
+make format-check
 make lint
+make precommit
 ```
 
-`make run` uses default app args (`--page test --width 2304 --height 1296`).
-Use `RUN_ARGS`/`ARGS` to override.
+`make run` defaults to:
 
-Pass app args with either `RUN_ARGS` or `ARGS`:
+```text
+--page test --width 2304 --height 1296
+```
+
+Override with `RUN_ARGS` or `ARGS`:
 
 ```bash
-cd rust
 make run RUN_ARGS="--page test --width 1920 --height 1080"
 ```
 
-## Makefile shortcuts:
-```
-make build    # build Rust app (rust/cui_app)
-make test     # run Rust tests for cui_app
-make run      # run Rust app via cargo (use RUN_ARGS/ARGS for app flags)
-make clean    # remove Rust target dir and legacy C build dir
-make c-configure # configure frozen C implementation (CMake)
-make c-build   # build frozen C implementation
-make c-test    # run CTest suite for frozen C implementation
-make c-run     # run frozen C app binary (use RUN_ARGS/ARGS for app flags)
-make format   # apply clang-format to non-vendored .c/.h files
-make lint     # run clang-tidy checks
-make analyze  # run Clang Static Analyzer for the cui target via scan-build
-make precommit # run Rust commit-gating checks (fmt/check/test)
-make c-precommit # run legacy C commit-gating checks (format-check/lint/analyze)
-make install-hooks # enable repo-managed Git hooks
-make submodules-init   # initialize and fetch vendored submodules
-make submodules-update # update submodules to latest remote commits
-```
+## CLI
 
-## Linting, Formatting, and Hooks:
-This repository uses:
+`cui_app` accepts:
 
-- `clang-format` for consistent formatting (`.clang-format`)
-- `clang-tidy` for linting and static checks (`.clang-tidy`)
-- `scan-build` for Clang Static Analyzer checks
+- `--page <id>` (currently only `test`)
+- `-w, --width <pixels>`
+- `-h, --height <pixels>`
+- `--help`
 
-Brace style policy: use Allman braces everywhere, meaning opening braces go on a new line for functions, control flow, and aggregate declarations.
-
-To enforce checks before every commit:
-
-```
-make install-hooks
-```
-
-After that, Git will run `.githooks/pre-commit`, which executes Rust-first commit checks via `make precommit` (`cargo fmt --check`, `cargo check`, `cargo test` for the Rust app).
-
-Run the frozen C implementation checks explicitly with:
+Show help:
 
 ```bash
-make c-precommit
+cargo run -p cui_app -- --help
 ```
 
-On macOS, install required tools with Homebrew if needed:
+## Hooks
+
+Install repo-managed Git hooks:
 
 ```bash
-brew install llvm
+git config core.hooksPath .githooks
 ```
 
-If Homebrew does not add LLVM binaries to your shell path automatically, add:
+The pre-commit hook runs:
 
 ```bash
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-```
-
-## Run (Rust Default):
-The default app run path is now the Rust port (`rust/cui_app`).
-
-Run via Cargo from the repository root:
-
-```bash
-cd rust
-cargo run -p cui_app
-```
-
-Or use the Makefile shortcut from the repository root:
-
-```bash
-make run
-```
-
-Optional startup window size:
-
-```bash
-make run RUN_ARGS="--width <width> --height <height>"
-```
-
-Optional startup page id (`<id>` is currently `test` only):
-
-```bash
-make run RUN_ARGS="--page <id>"
-```
-
-Example:
-
-```bash
-make run RUN_ARGS="--page test -w 1920 -h 1080"
-```
-
-Test page (stack layout testbed):
-
-```bash
-make run RUN_ARGS="--page test"
-```
-
-Show command-line help:
-
-```bash
-make run RUN_ARGS="--help"
-```
-
-Pass app args through `make run`:
-
-```bash
-make run RUN_ARGS="--page test --width 2560 --height 1440"
-```
-
-`ARGS` is also supported as an alias:
-
-```bash
-make run ARGS="--page test --width 1920 --height 1080"
-```
-
-## Run (Legacy C Reference)
-The original C implementation remains available and fixed while migration continues.
-
-Build and run it explicitly with:
-
-```bash
-make c-build
-make c-run
+make precommit
 ```
 
 ## Screenshot Capture (macOS)
 
-Use the helper script to launch the app, wait for startup, and capture the app window:
+Build once, then capture the app window to `/tmp`:
 
 ```bash
-scripts/capture_app_window.sh ./build/cui /tmp/cui-example.jpg
+cargo build -p cui_app
+scripts/capture_app_window.sh ./target/debug/cui_app /tmp/rui-test-page.jpg 2 -- --page test --width 1920 --height 1080
 ```
 
-Pass app arguments (for example startup width/height) after `--`:
-
-```bash
-scripts/capture_app_window.sh ./build/cui /tmp/cui-example-800x600.jpg 2 -- --page todo --width 800 --height 600
-```
-
-## Submodule workflow
-
-Use Makefile commands:
-
-```bash
-make submodules-init
-make submodules-update
-```
+Capture files are intended to be ephemeral validation artifacts.

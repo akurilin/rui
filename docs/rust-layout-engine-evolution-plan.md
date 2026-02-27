@@ -1,6 +1,6 @@
 # Rust Layout Engine Evolution Plan
 
-This document captures the current plan for improving the Rust layout engine (`rust/cui_app/src/pages/layout.rs`) after the recent `grow`/`fit-content` experiments in `test.rs`.
+This document captures the current plan for improving the Rust layout engine (`cui_app/src/pages/layout.rs`) after the recent `grow`/`fit-content` experiments in `test.rs`.
 
 The goal is to improve correctness and predictability across all pages, not to optimize only for the test page.
 
@@ -215,4 +215,3 @@ We should consider the refactor successful when:
 - No row/container overflows due to intrinsic measurement treating `FillParent` as intrinsic size
 - Nested `VStack`/`HStack` combinations behave predictably
 - The layout code is easier to explain in terms of "measure base size, then allocate extra space"
-
