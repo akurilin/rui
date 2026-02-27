@@ -35,9 +35,10 @@ A Rust bootstrap app now exists under `rust/` while the C implementation remains
 Current Rust scope:
 
 - SDL3 app loop and window lifecycle
-- startup page selection (`--page`)
-- runtime page switching (`1`, `2`, `3`, `4`, `Tab`)
-- placeholder page rendering for `todo`, `corners`, `showcase`, and `test`
+- startup viewport sizing (`--width`, `--height`)
+- startup page selection constrained to `--page test`
+- single active Rust page: `test` (container/stack layout testbed)
+- default Rust startup size set to `2304x1296` (60% of 4K `3840x2160`)
 - shared stack layout engine with `VStack`/`HStack` wrappers (axis-driven internally)
 - stack sizing modes (prototype): `fit-content`, `fill-parent`, `fixed(px)`, `grow(weight)`
 - nested stack layout test page built from stacks/color blocks for fit/fill/grow visual validation
@@ -234,15 +235,15 @@ From repository root:
 
 ```bash
 cd rust
-cargo run -p cui_app -- --page todo
+cargo run -p cui_app
 ```
 
 Optional startup size/page examples:
 
 ```bash
 cd rust
-cargo run -p cui_app -- --page corners --width 1000 --height 700
-cargo run -p cui_app -- --page showcase --width 1100 --height 760
+cargo run -p cui_app -- --width 2560 --height 1440
+cargo run -p cui_app -- --page test --width 1920 --height 1080
 ```
 
 Show Rust app help:
@@ -250,6 +251,26 @@ Show Rust app help:
 ```bash
 cd rust
 cargo run -p cui_app -- --help
+```
+
+From the Rust workspace folder, a local `Makefile` is available for common tasks:
+
+```bash
+cd rust
+make run
+make test
+make format
+make lint
+```
+
+`make run` uses default app args (`--page test --width 2304 --height 1296`).
+Use `RUN_ARGS`/`ARGS` to override.
+
+Pass app args with either `RUN_ARGS` or `ARGS`:
+
+```bash
+cd rust
+make run RUN_ARGS="--page test --width 1920 --height 1080"
 ```
 
 ## Makefile shortcuts:
@@ -314,7 +335,7 @@ Run via Cargo from the repository root:
 
 ```bash
 cd rust
-cargo run -p cui_app -- --page todo
+cargo run -p cui_app
 ```
 
 Or use the Makefile shortcut from the repository root:
@@ -329,7 +350,7 @@ Optional startup window size:
 make run RUN_ARGS="--width <width> --height <height>"
 ```
 
-Optional startup page id (`<id>` is one of `todo`, `corners`, `showcase`, `test`):
+Optional startup page id (`<id>` is currently `test` only):
 
 ```bash
 make run RUN_ARGS="--page <id>"
@@ -338,19 +359,7 @@ make run RUN_ARGS="--page <id>"
 Example:
 
 ```bash
-make run RUN_ARGS="--page todo -w 800 -h 600"
-```
-
-Corners anchor test page:
-
-```bash
-make run RUN_ARGS="--page corners"
-```
-
-Showcase page:
-
-```bash
-make run RUN_ARGS="--page showcase"
+make run RUN_ARGS="--page test -w 1920 -h 1080"
 ```
 
 Test page (stack layout testbed):
@@ -368,17 +377,13 @@ make run RUN_ARGS="--help"
 Pass app args through `make run`:
 
 ```bash
-make run RUN_ARGS="--page todo --width 800 --height 600"
+make run RUN_ARGS="--page test --width 2560 --height 1440"
 ```
 
 `ARGS` is also supported as an alias:
 
 ```bash
-make run ARGS="--page corners --width 1000 --height 700"
-```
-
-```bash
-make run ARGS="--page showcase --width 1100 --height 760"
+make run ARGS="--page test --width 1920 --height 1080"
 ```
 
 ## Run (Legacy C Reference)

@@ -1,9 +1,6 @@
-pub mod corners;
 #[allow(dead_code)]
 pub mod layout;
-pub mod showcase;
 pub mod test;
-pub mod todo;
 
 use sdl3::render::WindowCanvas;
 
@@ -26,36 +23,22 @@ impl Viewport {
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum PageId {
-    Todo,
-    Corners,
-    Showcase,
     Test,
 }
 
 impl PageId {
     pub fn all() -> &'static [PageId] {
-        &[
-            PageId::Todo,
-            PageId::Corners,
-            PageId::Showcase,
-            PageId::Test,
-        ]
+        &[PageId::Test]
     }
 
     pub fn as_str(&self) -> &'static str {
         match self {
-            PageId::Todo => "todo",
-            PageId::Corners => "corners",
-            PageId::Showcase => "showcase",
             PageId::Test => "test",
         }
     }
 
     pub fn from_id(value: &str) -> Result<Self, String> {
         match value {
-            "todo" => Ok(PageId::Todo),
-            "corners" => Ok(PageId::Corners),
-            "showcase" => Ok(PageId::Showcase),
             "test" => Ok(PageId::Test),
             _ => Err(format!("Unknown page id: {}", value)),
         }
@@ -63,39 +46,18 @@ impl PageId {
 }
 
 pub struct PageManager {
-    active_id: PageId,
     active_page: Box<dyn AppPage>,
 }
 
 impl PageManager {
     pub fn new(initial_page_id: PageId) -> Self {
         Self {
-            active_id: initial_page_id,
             active_page: build_page(initial_page_id),
         }
     }
 
     pub fn active_page_id(&self) -> PageId {
-        self.active_id
-    }
-
-    pub fn switch_to(&mut self, page_id: PageId) {
-        if self.active_id == page_id {
-            return;
-        }
-
-        self.active_id = page_id;
-        self.active_page = build_page(page_id);
-    }
-
-    pub fn cycle_next(&mut self) {
-        let page_ids = PageId::all();
-        let current = page_ids
-            .iter()
-            .position(|id| *id == self.active_id)
-            .unwrap_or(0);
-        let next = (current + 1) % page_ids.len();
-        self.switch_to(page_ids[next]);
+        PageId::Test
     }
 
     pub fn update(&mut self, dt_seconds: f32) {
@@ -109,9 +71,6 @@ impl PageManager {
 
 fn build_page(page_id: PageId) -> Box<dyn AppPage> {
     match page_id {
-        PageId::Todo => Box::new(todo::TodoPage::new()),
-        PageId::Corners => Box::new(corners::CornersPage::new()),
-        PageId::Showcase => Box::new(showcase::ShowcasePage::new()),
         PageId::Test => Box::new(test::TestPage::new()),
     }
 }

@@ -7,9 +7,8 @@ use sdl3::sys::render::SDL_LOGICAL_PRESENTATION_LETTERBOX;
 use std::env;
 use std::time::{Duration, Instant};
 
-const DEFAULT_WINDOW_WIDTH: u32 = 1024;
-const DEFAULT_WINDOW_HEIGHT: u32 = 768;
-const TEST_PAGE_DEFAULT_HEIGHT: u32 = DEFAULT_WINDOW_HEIGHT * 3 / 2;
+const DEFAULT_WINDOW_WIDTH: u32 = 2304;
+const DEFAULT_WINDOW_HEIGHT: u32 = 1296;
 const MIN_WINDOW_WIDTH: u32 = 640;
 const MIN_WINDOW_HEIGHT: u32 = 480;
 
@@ -29,9 +28,8 @@ impl AppConfig {
         let mut config = AppConfig {
             width: DEFAULT_WINDOW_WIDTH,
             height: DEFAULT_WINDOW_HEIGHT,
-            page_id: PageId::Todo,
+            page_id: PageId::Test,
         };
-        let mut height_was_set = false;
 
         let args: Vec<String> = env::args().collect();
         let mut index = 1usize;
@@ -63,7 +61,6 @@ impl AppConfig {
                         return Err(format!("Missing value for {}", option));
                     }
                     config.height = parse_positive_u32(option, &args[index])?;
-                    height_was_set = true;
                 }
                 _ => {
                     return Err(format!("Unknown option: {}", option));
@@ -71,10 +68,6 @@ impl AppConfig {
             }
 
             index += 1;
-        }
-
-        if config.page_id == PageId::Test && !height_was_set {
-            config.height = TEST_PAGE_DEFAULT_HEIGHT;
         }
 
         Ok(StartupDecision::Run(config))
@@ -86,10 +79,7 @@ pub fn run(config: AppConfig) -> Result<(), String> {
     let video = sdl.video().map_err(|e| e.to_string())?;
 
     let mut window_builder = video.window("CUI - Rust SDL3 Prototype", config.width, config.height);
-    window_builder
-        .position_centered()
-        .high_pixel_density()
-        .resizable();
+    window_builder.position_centered().resizable();
 
     let mut window = window_builder.build().map_err(|e| e.to_string())?;
     window
@@ -124,31 +114,6 @@ pub fn run(config: AppConfig) -> Result<(), String> {
                         apply_logical_size(&mut canvas, viewport.width, viewport.height)?;
                     }
                 }
-                Event::KeyDown {
-                    keycode: Some(Keycode::_1),
-                    repeat: false,
-                    ..
-                } => page_manager.switch_to(PageId::Todo),
-                Event::KeyDown {
-                    keycode: Some(Keycode::_2),
-                    repeat: false,
-                    ..
-                } => page_manager.switch_to(PageId::Corners),
-                Event::KeyDown {
-                    keycode: Some(Keycode::_3),
-                    repeat: false,
-                    ..
-                } => page_manager.switch_to(PageId::Showcase),
-                Event::KeyDown {
-                    keycode: Some(Keycode::_4),
-                    repeat: false,
-                    ..
-                } => page_manager.switch_to(PageId::Test),
-                Event::KeyDown {
-                    keycode: Some(Keycode::Tab),
-                    repeat: false,
-                    ..
-                } => page_manager.cycle_next(),
                 _ => {}
             }
         }
@@ -188,10 +153,7 @@ fn render_overlay(canvas: &mut WindowCanvas, page_id: PageId) -> Result<(), Stri
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas
         .draw_debug_text(
-            &format!(
-                "page={} | switch: [1] todo [2] corners [3] showcase [4] test [tab] next [esc] quit",
-                page_id.as_str()
-            ),
+            &format!("page={} | layout test mode | [esc] quit", page_id.as_str()),
             (20.0, 16.0),
         )
         .map_err(|e| e.to_string())
