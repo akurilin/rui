@@ -11,6 +11,10 @@ This project is focused on building a reusable UI kit in C using SDL3, currently
 
 This repository is currently in the middle of a migration from the original C application and UI library to Rust versions of the app and library. The C implementation is staying fixed for now as the migration proceeds in `rust/`.
 
+## Project Status
+
+This project is very much a work in progress and is still far from feature complete. Expect missing capabilities, rough edges, and ongoing breaking changes while the Rust migration and layout/runtime foundations continue to evolve.
+
 ## Current UI
 
 Captured on February 14, 2026 from the current TODO sample page:
@@ -41,6 +45,9 @@ Current Rust scope:
 - default Rust startup size set to `2304x1296` (60% of 4K `3840x2160`)
 - shared stack layout engine with `VStack`/`HStack` wrappers (axis-driven internally)
 - stack sizing modes (prototype): `fit-content`, `fill-parent`, `fixed(px)`, `grow(weight)`
+- stack child layout modes: flow-participating and parent-relative overlay (non-participating)
+- overlay alignment modes: `start`, `center`, `end` per axis
+- `TextLabel` layout node for reusable in-layout debug/annotation text
 - nested stack layout test page built from stacks/color blocks for fit/fill/grow visual validation
 
 ## Architecture Overview
