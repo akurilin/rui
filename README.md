@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/akurilin/rui/actions/workflows/ci.yml/badge.svg)](https://github.com/akurilin/rui/actions/workflows/ci.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/akurilin/rui)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![SDL3](https://img.shields.io/badge/SDL3-via%20rust--sdl3-1f425f)](https://github.com/vhspace/sdl3-rs)
 [![style: rustfmt](https://img.shields.io/badge/style-rustfmt-93450a.svg)](https://github.com/rust-lang/rustfmt)
