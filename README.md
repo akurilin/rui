@@ -139,6 +139,8 @@ GitHub Actions runs the same baseline checks from `.github/workflows/ci.yml` on:
 - `pull_request`
 - manual trigger (`workflow_dispatch`)
 
+The workflow also installs Linux SDL build dependencies (`X11`/`Wayland` development packages) before running checks.
+
 ## Screenshot Capture (macOS)
 
 Build once, then capture the app window to `/tmp`:
