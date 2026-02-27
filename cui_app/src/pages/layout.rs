@@ -14,6 +14,8 @@
 //! - Overlay children are parent-relative and never participate in flow sizing/math.
 
 use crate::pages::Viewport;
+use sdl3::image::ImageIOStream;
+use sdl3::iostream::IOStream;
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
 
@@ -170,6 +172,74 @@ impl TextLabel {
 }
 
 #[derive(Clone)]
+pub struct SvgIcon {
+    svg_bytes: &'static [u8],
+    size: SizeSpec,
+    intrinsic_width: f32,
+    intrinsic_height: f32,
+}
+
+impl SvgIcon {
+    /// Creates an icon from SVG bytes.
+    pub fn from_svg_bytes(svg_bytes: &'static [u8]) -> Self {
+        Self {
+            svg_bytes,
+            size: SizeSpec::new(SizeMode::FitContent, SizeMode::FitContent),
+            intrinsic_width: 24.0,
+            intrinsic_height: 24.0,
+        }
+    }
+
+    pub fn fixed_size(mut self, width: f32, height: f32) -> Self {
+        self.intrinsic_width = width.max(0.0);
+        self.intrinsic_height = height.max(0.0);
+        self.size.width = SizeMode::Fixed(width.max(0.0));
+        self.size.height = SizeMode::Fixed(height.max(0.0));
+        self
+    }
+
+    pub fn size(mut self, width: SizeMode, height: SizeMode) -> Self {
+        self.size.width = width;
+        self.size.height = height;
+        self
+    }
+
+    pub fn with_width(mut self, mode: SizeMode) -> Self {
+        self.size.width = mode;
+        self
+    }
+
+    pub fn with_height(mut self, mode: SizeMode) -> Self {
+        self.size.height = mode;
+        self
+    }
+
+    fn measure(&self, available: Size2) -> Size2 {
+        Size2::new(
+            resolve_dimension(self.size.width, self.intrinsic_width, available.w),
+            resolve_dimension(self.size.height, self.intrinsic_height, available.h),
+        )
+    }
+
+    fn render_in_rect(&self, canvas: &mut WindowCanvas, rect: FRect) -> Result<(), String> {
+        if rect.w <= 0.0 || rect.h <= 0.0 {
+            return Ok(());
+        }
+
+        let stream = IOStream::from_bytes(self.svg_bytes).map_err(|e| e.to_string())?;
+        let surface = stream.load_typed("SVG").map_err(|e| e.to_string())?;
+        let texture_creator = canvas.texture_creator();
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .map_err(|e| e.to_string())?;
+
+        canvas
+            .copy(&texture, None, Some(rect))
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[derive(Clone)]
 struct OverlayChild {
     node: LayoutNode,
     placement: OverlayPlacement,
@@ -298,6 +368,7 @@ pub enum LayoutNode {
     Stack(Stack),
     Block(ColorBlock),
     Text(TextLabel),
+    Icon(SvgIcon),
 }
 
 impl LayoutNode {
@@ -306,6 +377,7 @@ impl LayoutNode {
             LayoutNode::Stack(stack) => stack.size,
             LayoutNode::Block(block) => block.size,
             LayoutNode::Text(text) => text.size,
+            LayoutNode::Icon(icon) => icon.size,
         }
     }
 
@@ -314,6 +386,7 @@ impl LayoutNode {
             LayoutNode::Block(block) => block.measure(available),
             LayoutNode::Stack(stack) => stack.measure(available),
             LayoutNode::Text(text) => text.measure(available),
+            LayoutNode::Icon(icon) => icon.measure(available),
         }
     }
 
@@ -322,6 +395,7 @@ impl LayoutNode {
             LayoutNode::Block(block) => block.render_in_rect(canvas, rect),
             LayoutNode::Stack(stack) => stack.render_in_rect(canvas, rect),
             LayoutNode::Text(text) => text.render_in_rect(canvas, rect),
+            LayoutNode::Icon(icon) => icon.render_in_rect(canvas, rect),
         }
     }
 
@@ -346,6 +420,7 @@ impl LayoutNode {
             LayoutNode::Stack(stack) => &mut stack.size,
             LayoutNode::Block(block) => &mut block.size,
             LayoutNode::Text(text) => &mut text.size,
+            LayoutNode::Icon(icon) => &mut icon.size,
         };
 
         match axis {
@@ -378,6 +453,12 @@ impl From<ColorBlock> for LayoutNode {
 impl From<TextLabel> for LayoutNode {
     fn from(value: TextLabel) -> Self {
         LayoutNode::Text(value)
+    }
+}
+
+impl From<SvgIcon> for LayoutNode {
+    fn from(value: SvgIcon) -> Self {
+        LayoutNode::Icon(value)
     }
 }
 
