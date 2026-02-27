@@ -33,6 +33,7 @@ jobs:
             libxrandr-dev \
             libxcursor-dev \
             libxrender-dev \
+            libxss-dev \
             libxkbcommon-dev
 
       - name: Install Rust toolchain
