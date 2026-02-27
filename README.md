@@ -22,6 +22,10 @@ Current app scope:
 - SVG icon rendering via SDL_image on the test page
 - TTF font rendering via SDL_ttf for right-pane menu labels on the test page
 
+## Main Page Screenshot
+
+![Main page screenshot](assets/screenshots/main-2026-02-27.jpg)
+
 ## Repository Layout
 
 - `Cargo.toml`: workspace manifest

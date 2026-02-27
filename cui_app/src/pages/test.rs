@@ -13,8 +13,14 @@ const ROW_FIXED_SPACING: f32 = 16.0;
 const EXPERIMENT_MENU_ROW_SPACING: f32 = 12.0;
 const EXPERIMENT_MENU_ITEM_HEIGHT: f32 = 68.0;
 const EXPERIMENT_MENU_ITEM_PADDING: f32 = 14.0;
-const EXPERIMENT_MENU_WIDTH: f32 = 520.0;
+const EXPERIMENT_MENU_WIDTH: f32 = 450.0;
+const EXPERIMENT_MENU_PAIR_SPACING: f32 = 20.0;
 const EXPERIMENT_MENU_ICON_SIZE: f32 = 34.0;
+const EXPERIMENT_MENU_LABEL_ICON_GAP: f32 = 20.0;
+const EXPERIMENT_MENU_TEXT_WRAP_WIDTH: f32 = EXPERIMENT_MENU_WIDTH
+    - (EXPERIMENT_MENU_ITEM_PADDING * 2.0)
+    - EXPERIMENT_MENU_ICON_SIZE
+    - EXPERIMENT_MENU_LABEL_ICON_GAP;
 
 const COPY_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/copy.svg");
 const PASTE_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/paste.svg");
@@ -176,13 +182,20 @@ impl AppPage for TestPage {
             .push(grow_row);
 
         let experiment_menu = build_experiment_menu();
+        let wrapping_experiment_menu = build_wrapping_experiment_menu();
+        let experiment_menu_pair = HStack::new(Color::RGB(39, 86, 160))
+            .with_width(SizeMode::FillParent)
+            .with_height(SizeMode::FitContent)
+            .with_spacing(EXPERIMENT_MENU_PAIR_SPACING)
+            .push(experiment_menu)
+            .push(wrapping_experiment_menu);
 
         // Right pane: reserved for future experiments.
         let right_pane = VStack::new(Color::RGB(39, 86, 160))
             .with_width(SizeMode::Fixed(half_viewport_width))
             .with_height(SizeMode::FillParent)
             .with_padding(ROOT_STACK_PADDING)
-            .push(experiment_menu);
+            .push(experiment_menu_pair);
 
         let split_panes = HStack::new(Color::RGB(31, 76, 138))
             .with_spacing(ROOT_PANE_SPACING)
@@ -259,6 +272,79 @@ fn build_experiment_menu_row(
                 .with_ttf_font(JETBRAINS_MONO_FONT, 30.0),
             OverlayAlign::Start,
             OverlayAlign::Center,
+        )
+        .push_overlay(
+            SvgIcon::from_svg_bytes(icon_svg)
+                .fixed_size(EXPERIMENT_MENU_ICON_SIZE, EXPERIMENT_MENU_ICON_SIZE),
+            OverlayAlign::End,
+            OverlayAlign::Center,
+        )
+}
+
+fn build_wrapping_experiment_menu() -> VStack {
+    let menu_background = Color::RGB(168, 129, 184);
+    let row_background = Color::RGB(185, 152, 201);
+    let text_color = Color::RGB(241, 238, 245);
+
+    VStack::new(menu_background)
+        .with_width(SizeMode::Fixed(EXPERIMENT_MENU_WIDTH))
+        .with_height(SizeMode::FitContent)
+        .with_padding(EXPERIMENT_MENU_ITEM_PADDING)
+        .with_spacing(EXPERIMENT_MENU_ROW_SPACING)
+        .push(build_wrapping_experiment_menu_row(
+            "Copy",
+            COPY_ICON_SVG,
+            row_background,
+            text_color,
+            true,
+        ))
+        .push(build_wrapping_experiment_menu_row(
+            "Paste",
+            PASTE_ICON_SVG,
+            row_background,
+            text_color,
+            true,
+        ))
+        .push(build_wrapping_experiment_menu_row(
+            "ThisIsASingleSuperLongWordThatShouldWrapAcrossMultipleLines",
+            DELETE_ICON_SVG,
+            row_background,
+            text_color,
+            true,
+        ))
+        .push(build_wrapping_experiment_menu_row(
+            "This row has many words so text should wrap to a second line",
+            LAYER_ICON_SVG,
+            row_background,
+            text_color,
+            true,
+        ))
+        .push(build_wrapping_experiment_menu_row(
+            "Comment",
+            COMMENT_ICON_SVG,
+            row_background,
+            text_color,
+            true,
+        ))
+}
+
+fn build_wrapping_experiment_menu_row(
+    label: &str,
+    icon_svg: &'static [u8],
+    background: Color,
+    foreground: Color,
+    wraps: bool,
+) -> HStack {
+    HStack::new(background)
+        .with_width(SizeMode::FillParent)
+        .with_height(SizeMode::FitContent)
+        .with_padding(EXPERIMENT_MENU_ITEM_PADDING)
+        .push(
+            TextLabel::new(label)
+                .with_color(foreground)
+                .with_ttf_font(JETBRAINS_MONO_FONT, 30.0)
+                .with_wrap(wraps)
+                .with_width(SizeMode::Fixed(EXPERIMENT_MENU_TEXT_WRAP_WIDTH)),
         )
         .push_overlay(
             SvgIcon::from_svg_bytes(icon_svg)

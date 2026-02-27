@@ -176,6 +176,7 @@ impl TextLabel {
     }
 
     fn intrinsic_size(&self, available: Size2) -> Size2 {
+        let available = self.resolve_ttf_measure_available(available);
         if let Some(font) = self.font
             && let Ok(size) = self.measure_ttf_intrinsic_size(font, available)
         {
@@ -207,6 +208,14 @@ impl TextLabel {
         canvas
             .draw_debug_text(self.text.as_str(), (rect.x, rect.y))
             .map_err(|e| e.to_string())
+    }
+
+    fn resolve_ttf_measure_available(&self, available: Size2) -> Size2 {
+        let constrained_width = match self.size.width {
+            SizeMode::Fixed(value) => value.max(0.0).min(available.w.max(0.0)),
+            _ => available.w.max(0.0),
+        };
+        Size2::new(constrained_width, available.h)
     }
 
     fn measure_ttf_intrinsic_size(
