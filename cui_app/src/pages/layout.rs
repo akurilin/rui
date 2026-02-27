@@ -18,6 +18,7 @@ use sdl3::image::ImageIOStream;
 use sdl3::iostream::IOStream;
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
+use sdl3::ttf;
 
 /// One-axis sizing behavior for layout nodes.
 #[derive(Clone, Copy)]
@@ -109,12 +110,21 @@ struct AxisRect {
 
 const DEBUG_GLYPH_WIDTH: f32 = 8.0;
 const DEBUG_GLYPH_HEIGHT: f32 = 8.0;
+const DEFAULT_FONT_POINT_SIZE: f32 = 16.0;
+
+#[derive(Clone, Copy)]
+struct TextFont {
+    bytes: &'static [u8],
+    point_size: f32,
+}
 
 #[derive(Clone)]
 pub struct TextLabel {
     text: String,
     color: Color,
     size: SizeSpec,
+    font: Option<TextFont>,
+    wraps: bool,
 }
 
 impl TextLabel {
@@ -124,6 +134,8 @@ impl TextLabel {
             text: text.into(),
             color: Color::RGB(245, 248, 252),
             size: SizeSpec::new(SizeMode::FitContent, SizeMode::FitContent),
+            font: None,
+            wraps: false,
         }
     }
 
@@ -148,7 +160,28 @@ impl TextLabel {
         self
     }
 
-    fn intrinsic_size(&self) -> Size2 {
+    /// Renders this label with a TTF/OTF font from static bytes.
+    pub fn with_ttf_font(mut self, font_bytes: &'static [u8], point_size: f32) -> Self {
+        self.font = Some(TextFont {
+            bytes: font_bytes,
+            point_size: point_size.max(1.0),
+        });
+        self
+    }
+
+    /// Enables or disables word wrapping for TTF labels.
+    pub fn with_wrap(mut self, wraps: bool) -> Self {
+        self.wraps = wraps;
+        self
+    }
+
+    fn intrinsic_size(&self, available: Size2) -> Size2 {
+        if let Some(font) = self.font
+            && let Ok(size) = self.measure_ttf_intrinsic_size(font, available)
+        {
+            return size;
+        }
+
         Size2::new(
             self.text.chars().count() as f32 * DEBUG_GLYPH_WIDTH,
             DEBUG_GLYPH_HEIGHT,
@@ -156,7 +189,7 @@ impl TextLabel {
     }
 
     fn measure(&self, available: Size2) -> Size2 {
-        let intrinsic = self.intrinsic_size();
+        let intrinsic = self.intrinsic_size(available);
         Size2::new(
             resolve_dimension(self.size.width, intrinsic.w, available.w),
             resolve_dimension(self.size.height, intrinsic.h, available.h),
@@ -164,10 +197,104 @@ impl TextLabel {
     }
 
     fn render_in_rect(&self, canvas: &mut WindowCanvas, rect: FRect) -> Result<(), String> {
+        if let Some(font) = self.font
+            && self.render_ttf_label(canvas, rect, font).is_ok()
+        {
+            return Ok(());
+        }
+
         canvas.set_draw_color(self.color);
         canvas
             .draw_debug_text(self.text.as_str(), (rect.x, rect.y))
             .map_err(|e| e.to_string())
+    }
+
+    fn measure_ttf_intrinsic_size(
+        &self,
+        font: TextFont,
+        available: Size2,
+    ) -> Result<Size2, String> {
+        let ttf_context = ttf::init().map_err(|e| e.to_string())?;
+        let font = open_ttf_font(&ttf_context, font)?;
+
+        if self.wraps {
+            let wrap_width = available.w.max(0.0).floor() as i32;
+            if wrap_width > 0 {
+                let surface = font
+                    .render(self.text.as_str())
+                    .blended_wrapped(self.color, wrap_width)
+                    .map_err(|e| e.to_string())?;
+                let (w, h) = surface.size();
+                return Ok(Size2::new(w as f32, h as f32));
+            }
+        }
+
+        let (w, h) = font
+            .size_of(self.text.as_str())
+            .map_err(|e| e.to_string())?;
+        Ok(Size2::new(w as f32, h as f32))
+    }
+
+    fn render_ttf_label(
+        &self,
+        canvas: &mut WindowCanvas,
+        rect: FRect,
+        font: TextFont,
+    ) -> Result<(), String> {
+        if rect.w <= 0.0 || rect.h <= 0.0 {
+            return Ok(());
+        }
+
+        let ttf_context = ttf::init().map_err(|e| e.to_string())?;
+        let font = open_ttf_font(&ttf_context, font)?;
+        let surface = if self.wraps {
+            let wrap_width = rect.w.max(0.0).floor() as i32;
+            if wrap_width > 0 {
+                font.render(self.text.as_str())
+                    .blended_wrapped(self.color, wrap_width)
+                    .map_err(|e| e.to_string())?
+            } else {
+                font.render(self.text.as_str())
+                    .blended(self.color)
+                    .map_err(|e| e.to_string())?
+            }
+        } else {
+            font.render(self.text.as_str())
+                .blended(self.color)
+                .map_err(|e| e.to_string())?
+        };
+
+        let texture_creator = canvas.texture_creator();
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .map_err(|e| e.to_string())?;
+        let (surface_width, surface_height) = surface.size();
+        let draw_width = (surface_width as f32).min(rect.w.max(0.0));
+        let draw_height = (surface_height as f32).min(rect.h.max(0.0));
+        let src_rect = FRect::new(0.0, 0.0, draw_width, draw_height);
+        let dst_rect = FRect::new(rect.x, rect.y, draw_width, draw_height);
+
+        canvas
+            .copy(&texture, Some(src_rect), Some(dst_rect))
+            .map_err(|e| e.to_string())
+    }
+}
+
+fn open_ttf_font(
+    ttf_context: &ttf::Sdl3TtfContext,
+    font: TextFont,
+) -> Result<ttf::Font<'static>, String> {
+    let stream = IOStream::from_bytes(font.bytes).map_err(|e| e.to_string())?;
+    ttf_context
+        .load_font_from_iostream(stream, sanitize_font_point_size(font.point_size))
+        .map_err(|e| e.to_string())
+}
+
+fn sanitize_font_point_size(point_size: f32) -> f32 {
+    if point_size.is_finite() {
+        point_size.max(1.0)
+    } else {
+        DEFAULT_FONT_POINT_SIZE
     }
 }
 
@@ -632,10 +759,10 @@ impl Stack {
                 // Measure base size once and re-use it for final arrangement below.
                 let measured = self.measure_child_base_size(&child.node, inner_size);
                 total_base_main += to_axis(self.axis, measured).main;
-                if let SizeMode::Grow(weight) = child.node.main_mode(self.axis) {
-                    if weight > 0.0 {
-                        total_grow_weight += weight;
-                    }
+                if let SizeMode::Grow(weight) = child.node.main_mode(self.axis)
+                    && weight > 0.0
+                {
+                    total_grow_weight += weight;
                 }
                 measured_sizes.push(measured);
             }

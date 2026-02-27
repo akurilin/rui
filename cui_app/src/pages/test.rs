@@ -21,6 +21,8 @@ const PASTE_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/paste.svg");
 const DELETE_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/delete.svg");
 const LAYER_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/layer.svg");
 const COMMENT_ICON_SVG: &[u8] = include_bytes!("../../../assets/icons/comment.svg");
+const JETBRAINS_MONO_FONT: &[u8] =
+    include_bytes!("../../../assets/fonts/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf");
 
 pub struct TestPage;
 
@@ -252,7 +254,9 @@ fn build_experiment_menu_row(
         .with_height(SizeMode::Fixed(EXPERIMENT_MENU_ITEM_HEIGHT))
         .with_padding(EXPERIMENT_MENU_ITEM_PADDING)
         .push_overlay(
-            TextLabel::new(label).with_color(foreground),
+            TextLabel::new(label)
+                .with_color(foreground)
+                .with_ttf_font(JETBRAINS_MONO_FONT, 30.0),
             OverlayAlign::Start,
             OverlayAlign::Center,
         )

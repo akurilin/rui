@@ -2,6 +2,12 @@
 
 Rust SDL3 UI app workspace.
 
+## WIP Notice
+
+This project is very much a work in progress.
+
+Most planned features are not implemented yet, and the current app should be treated as an early prototype while core architecture and layout/runtime behavior are still evolving.
+
 ## Project Status
 
 This repository is now Rust-only. The legacy C/CMake implementation has been removed.
@@ -13,6 +19,8 @@ Current app scope:
 - startup page selection (`--page test`)
 - single active page: `test`
 - stack layout primitives in `cui_app/src/pages/layout.rs`
+- SVG icon rendering via SDL_image on the test page
+- TTF font rendering via SDL_ttf for right-pane menu labels on the test page
 
 ## Repository Layout
 
@@ -20,6 +28,8 @@ Current app scope:
 - `Cargo.lock`: workspace lockfile
 - `Makefile`: Rust development shortcuts
 - `cui_app/`: application crate
+- `assets/icons/`: SVG icon assets used by prototype UI elements
+- `assets/fonts/`: bundled TTF font assets used by UI text rendering
 - `docs/`: design and planning notes for Rust layout/runtime evolution
 - `scripts/capture_app_window.sh`: macOS helper to capture app window screenshots
 
