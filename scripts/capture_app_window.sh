@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <binary_path> <output_png_path> [startup_seconds] [-- app_args...]" >&2
+    echo "Usage: $0 <binary_path> <output_jpg_path> [startup_seconds] [-- app_args...]" >&2
     exit 1
 fi
 
@@ -20,8 +20,18 @@ if [[ $# -ge 4 ]]; then
     elif [[ $# -eq 3 ]]; then
         :
     else
-        echo "Usage: $0 <binary_path> <output_png_path> [startup_seconds] [-- app_args...]" >&2
+        echo "Usage: $0 <binary_path> <output_jpg_path> [startup_seconds] [-- app_args...]" >&2
         exit 1
+    fi
+fi
+
+OUTPUT_PATH_LOWER="$(printf '%s' "$OUTPUT_PATH" | tr '[:upper:]' '[:lower:]')"
+if [[ "$OUTPUT_PATH_LOWER" != *.jpg && "$OUTPUT_PATH_LOWER" != *.jpeg ]]; then
+    OUTPUT_BASENAME="${OUTPUT_PATH%.*}"
+    if [[ "$OUTPUT_BASENAME" == "$OUTPUT_PATH" ]]; then
+        OUTPUT_PATH="${OUTPUT_PATH}.jpg"
+    else
+        OUTPUT_PATH="${OUTPUT_BASENAME}.jpg"
     fi
 fi
 
@@ -36,7 +46,11 @@ mkdir -p "$OUTPUT_DIR"
 PROCESS_NAME="$(basename "$BINARY_PATH")"
 LOG_PATH="$OUTPUT_DIR/${PROCESS_NAME}.capture.log"
 
-"$BINARY_PATH" "${APP_ARGS[@]}" >"$LOG_PATH" 2>&1 &
+if [[ ${#APP_ARGS[@]} -gt 0 ]]; then
+    "$BINARY_PATH" "${APP_ARGS[@]}" >"$LOG_PATH" 2>&1 &
+else
+    "$BINARY_PATH" >"$LOG_PATH" 2>&1 &
+fi
 APP_PID=$!
 
 cleanup()
@@ -74,5 +88,5 @@ if [[ -z "$WINDOW_ID" ]]; then
     exit 1
 fi
 
-screencapture -x -o -l "$WINDOW_ID" "$OUTPUT_PATH"
+screencapture -x -o -t jpg -l "$WINDOW_ID" "$OUTPUT_PATH"
 echo "Captured $PROCESS_NAME window ($WINDOW_ID) -> $OUTPUT_PATH"

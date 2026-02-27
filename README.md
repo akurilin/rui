@@ -401,13 +401,13 @@ make c-run
 Use the helper script to launch the app, wait for startup, and capture the app window:
 
 ```bash
-scripts/capture_app_window.sh ./build/cui /tmp/cui-example.png
+scripts/capture_app_window.sh ./build/cui /tmp/cui-example.jpg
 ```
 
 Pass app arguments (for example startup width/height) after `--`:
 
 ```bash
-scripts/capture_app_window.sh ./build/cui /tmp/cui-example-800x600.png 2 -- --page todo --width 800 --height 600
+scripts/capture_app_window.sh ./build/cui /tmp/cui-example-800x600.jpg 2 -- --page todo --width 800 --height 600
 ```
 
 ## Submodule workflow

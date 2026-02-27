@@ -100,9 +100,10 @@ impl AppPage for TestPage {
                     .with_height(SizeMode::FillParent),
             );
 
+        // The actual container of all of the rows.
         VStack::new(Color::RGB(52, 116, 214))
             .with_spacing(3.0)
-            .with_padding(6.0)
+            .with_padding(20.0)
             .fill_both()
             .push(fixed_size_row)
             .push(fixed_size_row_fit_width)

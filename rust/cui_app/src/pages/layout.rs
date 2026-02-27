@@ -1,15 +1,35 @@
+//! Stack-based layout primitives used by the Rust prototype pages.
+//!
+//! The model is intentionally small:
+//! - `VStack` and `HStack` are axis-specialized wrappers over a single `Stack` implementation.
+//! - Nodes expose a `SizeMode` per axis (`FitContent`, `FillParent`, `Fixed`, `Grow`).
+//! - Layout follows a measure/arrange split:
+//!   - Measure computes intrinsic/base size.
+//!   - Arrange places children into the final rectangle and distributes remaining space.
+//!
+//! Important sizing semantics:
+//! - `FillParent` and `Grow` are treated like fit-content during measurement.
+//! - `Grow(weight)` consumes remaining main-axis space only during arrangement.
+//! - Child main-axis sizes are clamped to remaining parent space during arrangement.
+
 use crate::pages::Viewport;
 use sdl3::pixels::Color;
 use sdl3::render::{FRect, WindowCanvas};
 
+/// One-axis sizing behavior for layout nodes.
 #[derive(Clone, Copy)]
 pub enum SizeMode {
+    /// Use intrinsic/measured size.
     FitContent,
+    /// Fill available parent size at arrange-time.
     FillParent,
+    /// Use a fixed value in pixels.
     Fixed(f32),
+    /// Take a weighted share of leftover space at arrange-time.
     Grow(f32),
 }
 
+/// Width and height sizing modes for a node.
 #[derive(Clone, Copy)]
 pub struct SizeSpec {
     pub width: SizeMode,
@@ -58,6 +78,7 @@ pub struct ColorBlock {
 }
 
 impl ColorBlock {
+    /// Creates a simple colored rectangle with a default intrinsic size.
     pub fn new(background: Color) -> Self {
         Self {
             background,
@@ -92,6 +113,9 @@ impl ColorBlock {
     }
 }
 
+/// Tree node used by stack layout containers.
+///
+/// Public mainly to support ergonomic `push()` calls from page code.
 #[derive(Clone)]
 pub enum LayoutNode {
     Stack(Stack),
@@ -221,6 +245,7 @@ impl Stack {
     }
 
     fn measure(&self, available: Size2) -> Size2 {
+        // First compute intrinsic/base size, then resolve this stack's own size mode.
         let intrinsic = self.measure_intrinsic(available);
         let has_main_grow = self.has_main_axis_grow_child();
         let resolved_main = match self.axis {
@@ -268,6 +293,7 @@ impl Stack {
         let mut measured_children = 0usize;
 
         for child in &self.children {
+            // Base child size: coerce main-axis grow to fit-content during measure.
             let child_size = self.measure_child_base_size(&child.node, inner_available);
             let axis_size = to_axis(self.axis, child_size);
             content_main += axis_size.main;
@@ -318,6 +344,7 @@ impl Stack {
         let mut total_grow_weight = 0.0f32;
 
         for child in &self.children {
+            // Measure base size once and re-use it for final arrangement below.
             let measured = self.measure_child_base_size(&child.node, inner_size);
             total_base_main += to_axis(self.axis, measured).main;
             if let SizeMode::Grow(weight) = child.node.main_mode(self.axis) {
@@ -331,13 +358,15 @@ impl Stack {
         let available_main = to_axis_rect(self.axis, inner_rect).main;
         let extra_main = (available_main - total_base_main - gaps).max(0.0);
 
-        let mut cursor_main = to_axis_rect(self.axis, inner_rect).main_origin;
+        let axis_rect = to_axis_rect(self.axis, inner_rect);
+        let main_end = axis_rect.main_origin + axis_rect.main;
+        let mut cursor_main = axis_rect.main_origin;
 
         for (index, child) in self.children.iter().enumerate() {
             let child_size = measured_sizes[index];
             let current_axis = to_axis(self.axis, child_size);
 
-            let child_main = match child.node.main_mode(self.axis) {
+            let requested_main = match child.node.main_mode(self.axis) {
                 SizeMode::Grow(weight) if weight > 0.0 && total_grow_weight > 0.0 => {
                     current_axis.main + extra_main * (weight / total_grow_weight)
                 }
@@ -345,8 +374,11 @@ impl Stack {
                 SizeMode::FillParent => available_main,
                 _ => current_axis.main,
             };
+            // Hard bound against parent overflow: children cannot exceed remaining space.
+            let remaining_main = (main_end - cursor_main).max(0.0);
+            let child_main = requested_main.max(0.0).min(remaining_main);
 
-            let available_cross = to_axis_rect(self.axis, inner_rect).cross;
+            let available_cross = axis_rect.cross;
             let child_cross = match child.node.cross_mode(self.axis) {
                 SizeMode::FillParent | SizeMode::Grow(_) => available_cross,
                 SizeMode::Fixed(value) => value.max(0.0).min(available_cross),
@@ -365,7 +397,9 @@ impl Stack {
 
             cursor_main += child_main;
             if index + 1 < self.children.len() {
-                cursor_main += spacing;
+                // Preserve spacing without stepping past the parent edge.
+                let remaining_after_child = (main_end - cursor_main).max(0.0);
+                cursor_main += spacing.min(remaining_after_child);
             }
         }
 
@@ -400,6 +434,7 @@ pub struct VStack {
 }
 
 impl VStack {
+    /// Creates a vertical stack with a background fill.
     pub fn new(background: Color) -> Self {
         Self {
             inner: Stack::new(StackAxis::Vertical, Some(background)),
@@ -436,6 +471,7 @@ impl VStack {
         self
     }
 
+    /// Renders this stack into the full viewport rectangle.
     pub fn render(self, canvas: &mut WindowCanvas, viewport: Viewport) -> Result<(), String> {
         let rect = FRect::new(0.0, 0.0, viewport.width as f32, viewport.height as f32);
         self.inner.render_in_rect(canvas, rect)
@@ -454,6 +490,7 @@ pub struct HStack {
 }
 
 impl HStack {
+    /// Creates a horizontal stack with a background fill.
     pub fn new(background: Color) -> Self {
         Self {
             inner: Stack::new(StackAxis::Horizontal, Some(background)),
@@ -506,11 +543,16 @@ struct AxisRect {
 }
 
 fn resolve_dimension(mode: SizeMode, intrinsic: f32, available: f32) -> f32 {
+    let available = available.max(0.0);
+    let intrinsic = intrinsic.max(0.0);
+
     match mode {
-        SizeMode::FitContent => intrinsic.min(available.max(0.0)),
-        SizeMode::FillParent => available.max(0.0),
-        SizeMode::Fixed(value) => value.max(0.0).min(available.max(0.0)),
-        SizeMode::Grow(_) => available.max(0.0),
+        SizeMode::FitContent => intrinsic.min(available),
+        // Fill is an arrange-time concern; use intrinsic as the measurement baseline.
+        SizeMode::FillParent => intrinsic.min(available),
+        SizeMode::Fixed(value) => value.max(0.0).min(available),
+        // Grow also participates at arrange-time, not measure-time.
+        SizeMode::Grow(_) => intrinsic.min(available),
     }
 }
 
@@ -521,6 +563,8 @@ fn resolve_stack_main_dimension(
     has_main_grow_child: bool,
 ) -> f32 {
     match mode {
+        // Fit-content stacks with grow children need full available main-axis space
+        // so weighted distribution can happen in arrange.
         SizeMode::FitContent if has_main_grow_child => available.max(0.0),
         _ => resolve_dimension(mode, intrinsic, available),
     }
